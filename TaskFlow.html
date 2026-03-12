@@ -345,18 +345,62 @@ hr{border:none;border-top:1px solid var(--b);margin:1.15rem 0;}
   .sidebar.mob-open{display:flex;}
   .mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:249;}
   .mob-overlay.show{display:block;}
-  .main{padding:1rem;max-height:calc(100vh - 56px);}
+  .main{padding:.65rem .75rem;max-height:calc(100vh - 56px);overflow-y:auto;}
   .sr{grid-template-columns:repeat(2,1fr);}
-  .th,.tr{grid-template-columns:44px 1fr 70px 65px;} 
-  .th div:nth-child(5),.th div:nth-child(6),.th div:nth-child(7),
-  .tr div:nth-child(5),.tr div:nth-child(6),.tr div:nth-child(7){display:none;}
+  /* Tabla principal: solo ID, título, estado */
+  .th,.tr{grid-template-columns:40px 1fr 72px;}
+  .th div:nth-child(3),.th div:nth-child(4),.th div:nth-child(5),.th div:nth-child(6),.th div:nth-child(7),
+  .tr div:nth-child(3),.tr div:nth-child(4),.tr div:nth-child(5),.tr div:nth-child(6),.tr div:nth-child(7){display:none;}
+  .tr div:nth-child(5){display:block!important;} /* mostrar status */
+  /* dual-tr */
+  .dual-tr{grid-template-columns:36px 1fr 65px!important;padding:.22rem .5rem!important;}
+  .dual-tr>div:nth-child(3){display:none;}
   .dual-board{grid-template-columns:1fr;}
   .detail{width:100%;top:56px;}
   .mobmenu{display:flex!important;}
-  .topbar{padding:0 .9rem;}
+  .topbar{padding:0 .75rem;}
+  .topbar .live{display:none;}
+  .topbar #apillw{display:none;}
   .lbox{padding:1.6rem 1.2rem;}
   .sbox{padding:1.4rem 1rem;}
   .fr{grid-template-columns:1fr;}
+  /* Stats cards: 2 columnas en mobile */
+  .sc{padding:.5rem .4rem;}
+  .sv{font-size:1.1rem!important;}
+  /* Welcome screen */
+  #welcome{padding:1.5rem 1rem;}
+  .mob-welcome-btn{display:block!important;}
+  /* Header del tablero más compacto */
+  .pt{font-size:.95rem!important;}
+  .ph{flex-direction:row;align-items:center;gap:.5rem;flex-wrap:nowrap;margin-bottom:.5rem;}
+  .nbtn{font-size:.72rem!important;padding:.38rem .65rem!important;white-space:nowrap;flex-shrink:0;}
+  /* Stats: scroll horizontal */
+  #topstats,#minestats{display:flex!important;overflow-x:auto;gap:.4rem;padding-bottom:.3rem;scrollbar-width:none;}
+  #topstats::-webkit-scrollbar,#minestats::-webkit-scrollbar{display:none;}
+  .sc{min-width:80px;flex-shrink:0;padding:.4rem .35rem;}
+  .sv{font-size:1rem!important;}
+  .sl{font-size:.55rem!important;}
+  .ss{font-size:.5rem!important;}
+  /* Filas tabla */
+  .dual-tr{grid-template-columns:38px 1fr 60px!important;padding:.2rem .4rem!important;}
+  .dual-tr>div:nth-child(3){display:none!important;}
+  .dual-ttl{font-size:.7rem!important;}
+  .dual-tid{font-size:.6rem!important;}
+  /* Botones Recibidos/Generados */
+  .mine-toggle{font-size:.72rem!important;padding:.3rem .6rem!important;}
+  /* Mention cards */
+  .mention-card-title{max-width:120px!important;}
+  /* Ocultar Stage select en mobile */
+  #mine-stage-select{display:none;}
+  /* Filtros de vencimiento */
+  .fdue{font-size:.68rem!important;padding:.22rem .4rem!important;}
+  /* Mention cards */
+  .mention-card{padding:.25rem .55rem;}
+  /* topstats 2x3 en mobile */
+  #topstats{grid-template-columns:repeat(2,1fr)!important;}
+  #minestats{grid-template-columns:repeat(3,1fr)!important;}
+  /* Botón nuevo ticket */
+  .new-btn span{display:none;}
 }
 @media(min-width:769px){
   .mobmenu{display:none!important;}
@@ -649,6 +693,7 @@ alter table mention_tasks disable row level security;<button class="cpbtn" oncli
       <div style="font-size:1.15rem;font-weight:700;color:var(--tx);line-height:1.7;max-width:380px">Primero el diente y luego el pendiente...</div>
       <div style="font-size:.95rem;color:var(--ac);font-weight:600;margin-top:.5rem">pero ya ponte a chambear 💪</div>
       <div style="margin-top:2.5rem;font-size:.62rem;color:var(--mu);opacity:.4;text-transform:uppercase;letter-spacing:.06em">Selecciona una sección del menú</div>
+      <button onclick="toggleSidebar()" style="margin-top:1.5rem;background:var(--ac);color:#fff;border:none;border-radius:12px;padding:.65rem 1.4rem;font-size:.88rem;font-weight:600;cursor:pointer;font-family:inherit;display:none" class="mob-welcome-btn">☰ Abrir menú</button>
     </div>
     <div class="vl" id="leaderView">
       <div class="ph">
