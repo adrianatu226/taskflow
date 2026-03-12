@@ -1074,6 +1074,12 @@ function showApp(){
 }
 
 async function loadTickets(){
+  // Ping al Service Worker para que también chequee
+  if(navigator.serviceWorker && navigator.serviceWorker.controller){
+    const ticketIds = tickets.filter(t=>t.assignee===currentName&&t.status!=='Listo').map(t=>t.doc_id).join(',');
+    const mentionIds = mentionTasks.map(m=>m.id).join(',');
+    navigator.serviceWorker.controller.postMessage({type:'CHECK_NOW', currentTicketIds:ticketIds, currentMentionIds:mentionIds});
+  }
   try{
     const data=await dbGet('tickets','select=*&order=created_at.desc');
     if(data){
