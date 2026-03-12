@@ -2415,103 +2415,23 @@ function osNotify(title, body){
 }
 function registerSW(){
   if(!('serviceWorker' in navigator)||!SB_URL||!SB_KEY||!currentName) return;
-  // Service Worker code as blob
-  const swCode = `
-const SB_URL = '${SB_URL}';
-const SB_KEY = '${SB_KEY}';
-const USER = '${currentName}';
-let lastIds = null;
-let lastMentionIds = null;
-
-async function fetchTickets(){
-  try{
-    const r = await fetch(SB_URL+'/rest/v1/tickets?assignee=eq.'+encodeURIComponent(USER)+'&status=neq.Listo&order=created_at.desc&limit=50',{
-      headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}
-    });
-    return await r.json();
-  }catch(e){ return null; }
-}
-
-async function fetchMentions(){
-  try{
-    const r = await fetch(SB_URL+'/rest/v1/mention_tasks?mentioned_user=eq.'+encodeURIComponent(USER)+'&resolved_at=is.null&order=created_at.desc&limit=20',{
-      headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}
-    });
-    return await r.json();
-  }catch(e){ return null; }
-}
-
-async function check(){
-  // New tickets
-  const tickets = await fetchTickets();
-  if(tickets){
-    const ids = tickets.map(t=>t.doc_id).join(',');
-    if(lastIds !== null && ids !== lastIds){
-      const prev = lastIds.split(',');
-      const newOnes = tickets.filter(t=>!prev.includes(t.doc_id));
-      newOnes.forEach(t=>{
-        self.registration.showNotification('📬 Nuevo ticket asignado',{
-          body: t.title + ' · ' + t.category,
-          icon: '/taskflow/icon.png',
-          tag: 'ticket-'+t.doc_id
-        });
-      });
-    }
-    lastIds = ids;
-  }
-  // New mentions
-  const mentions = await fetchMentions();
-  if(mentions){
-    const mids = mentions.map(m=>m.id).join(',');
-    if(lastMentionIds !== null && mids !== lastMentionIds){
-      const prev = lastMentionIds.split(',');
-      const newOnes = mentions.filter(m=>!prev.includes(m.id));
-      newOnes.forEach(m=>{
-        self.registration.showNotification('💬 Te mencionaron',{
-          body: '@'+m.mentioned_by+' te etiquetó en un ticket',
-          icon: '/taskflow/icon.png',
-          tag: 'mention-'+m.id
-        });
-      });
-    }
-    lastMentionIds = mids;
-  }
-}
-
-self.addEventListener('install', e=>{ self.skipWaiting(); e.waitUntil(check()); });
-self.addEventListener('activate', e=>{ e.waitUntil(self.clients.claim()); });
-
-// Poll every 20 seconds via setInterval inside SW
-setInterval(check, 20000);
-
-// Listen for messages from main page
-self.addEventListener('message', e=>{
-  if(e.data && e.data.type==='UPDATE_CONFIG'){
-    // Re-check immediately when main page sends update
-    check();
-  }
-});
-
-self.addEventListener('notificationclick', e=>{
-  e.notification.close();
-  e.waitUntil(clients.openWindow('/taskflow/TaskFlow.html'));
-});
-`;
-
-  try{
-    const blob = new Blob([swCode], {type:'application/javascript'});
-    const swUrl = URL.createObjectURL(blob);
-    navigator.serviceWorker.register(swUrl, {scope:'/taskflow/'})
-      .then(reg=>{
-        window._swReg = reg;
-        console.log('[SW] Registrado OK');
-        // Cuando hay cambios, notificar al SW
-        window._notifySW = ()=>{
-          if(reg.active) reg.active.postMessage({type:'UPDATE_CONFIG'});
-        };
-      })
-      .catch(e=> console.warn('[SW] No se pudo registrar:',e.message));
-  }catch(e){ console.warn('[SW] Error:',e.message); }
+  navigator.serviceWorker.register('./sw.js')
+    .then(reg=>{
+      window._swReg = reg;
+      const initSW = ()=>{
+        const sw = reg.active || reg.installing || reg.waiting;
+        if(!sw){ setTimeout(initSW, 500); return; }
+        // Pasar credenciales y estado actual al SW
+        const ticketIds = tickets.filter(t=>t.assignee===currentName&&t.status!=='Listo').map(t=>t.doc_id).join(',');
+        const mentionIds = mentionTasks.map(m=>m.id).join(',');
+        sw.postMessage({ type:'INIT', sbUrl:SB_URL, sbKey:SB_KEY, user:currentName, currentTicketIds:ticketIds, currentMentionIds:mentionIds });
+      };
+      // Esperar a que el SW esté activo
+      if(reg.active) initSW();
+      else reg.addEventListener('updatefound',()=>{ const sw=reg.installing; sw.addEventListener('statechange',()=>{ if(sw.state==='activated') initSW(); }); });
+      console.log('[SW] Registrado OK');
+    })
+    .catch(e=> console.warn('[SW] No disponible:',e.message));
 }
 
 function requestOSNotifPermission(){
