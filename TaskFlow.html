@@ -370,30 +370,42 @@ hr{border:none;border-top:1px solid var(--b);margin:1.15rem 0;}
   /* Welcome screen */
   #welcome{padding:1.5rem 1rem;}
   .mob-welcome-btn{display:block!important;}
+  /* Topbar compacto */
+  .topbar{height:48px;}
+  .logo{font-size:.95rem;}
+  .logo .ico{width:22px;height:22px;font-size:.65rem;}
+  .uname{display:none;}
   /* Header del tablero más compacto */
-  .pt{font-size:.95rem!important;}
-  .ph{flex-direction:row;align-items:center;gap:.5rem;flex-wrap:nowrap;margin-bottom:.5rem;}
-  .nbtn{font-size:.72rem!important;padding:.38rem .65rem!important;white-space:nowrap;flex-shrink:0;}
-  /* Stats: scroll horizontal */
-  #topstats,#minestats{display:flex!important;overflow-x:auto;gap:.4rem;padding-bottom:.3rem;scrollbar-width:none;}
+  .pt{font-size:.9rem!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60vw;}
+  .ps{font-size:.68rem!important;}
+  .ph{flex-direction:row;align-items:center;gap:.4rem;margin-bottom:.5rem;}
+  .nbtn{font-size:.7rem!important;padding:.32rem .55rem!important;white-space:nowrap;flex-shrink:0;}
+  /* Stats: scroll horizontal cuando son visibles */
+  #topstats,#minestats{overflow-x:auto;gap:.35rem;padding-bottom:.25rem;scrollbar-width:none;flex-wrap:nowrap!important;}
   #topstats::-webkit-scrollbar,#minestats::-webkit-scrollbar{display:none;}
-  .sc{min-width:80px;flex-shrink:0;padding:.4rem .35rem;}
-  .sv{font-size:1rem!important;}
-  .sl{font-size:.55rem!important;}
-  .ss{font-size:.5rem!important;}
-  /* Filas tabla */
-  .dual-tr{grid-template-columns:38px 1fr 60px!important;padding:.2rem .4rem!important;}
+  .sc{min-width:75px;max-width:75px;flex-shrink:0;padding:.35rem .3rem;}
+  .sv{font-size:.95rem!important;}
+  .sl{font-size:.52rem!important;line-height:1.2;}
+  .ss{font-size:.48rem!important;}
+  /* Filas tabla — solo título y estado */
+  .dual-tr{grid-template-columns:36px 1fr 62px!important;padding:.22rem .45rem!important;min-height:0!important;}
   .dual-tr>div:nth-child(3){display:none!important;}
-  .dual-ttl{font-size:.7rem!important;}
-  .dual-tid{font-size:.6rem!important;}
-  /* Botones Recibidos/Generados */
-  .mine-toggle{font-size:.72rem!important;padding:.3rem .6rem!important;}
+  .dual-ttl{font-size:.68rem!important;}
+  .dual-tid{font-size:.58rem!important;}
+  /* Botones */
+  .mine-toggle{font-size:.7rem!important;padding:.28rem .55rem!important;}
   /* Mention cards */
-  .mention-card-title{max-width:120px!important;}
-  /* Ocultar Stage select en mobile */
+  .mention-card-title{max-width:110px!important;}
+  /* Ocultar extras */
   #mine-stage-select{display:none;}
-  /* Filtros de vencimiento */
-  .fdue{font-size:.68rem!important;padding:.22rem .4rem!important;}
+  .fdue{font-size:.66rem!important;padding:.2rem .38rem!important;}
+  /* Tabla principal mobile */
+  .th,.tr{grid-template-columns:36px 1fr 62px!important;}
+  .th div:nth-child(n+3),.tr div:nth-child(n+3){display:none!important;}
+  .tr div:last-child{display:block!important;}
+  /* Evitar overflow horizontal */
+  .main{overflow-x:hidden!important;}
+  .vl{overflow-x:hidden;}
   /* Mention cards */
   .mention-card{padding:.25rem .55rem;}
   /* topstats 2x3 en mobile */
@@ -1046,8 +1058,19 @@ function showApp(){
   document.getElementById('app').style.display='grid';
   loadTickets();
   pollTimer=setInterval(loadTickets,5000);
-  // Request OS notification permission
+  // Cuando el usuario vuelve a la pestaña → fetch inmediato
+  document.addEventListener('visibilitychange',()=>{
+    if(!document.hidden) loadTickets();
+  });
+  // Fallback: BroadcastChannel para detectar actividad entre pestañas
+  try{
+    const bc=new BroadcastChannel('tf_poll');
+    bc.onmessage=()=>{ if(!document.hidden) loadTickets(); };
+    window._tfBC=bc;
+  }catch(e){}
   setTimeout(requestOSNotifPermission, 2000);
+  // Registrar Service Worker para notificaciones en background
+  registerSW();
 }
 
 async function loadTickets(){
@@ -1243,7 +1266,7 @@ function renderTable(){
     document.getElementById('topstats').style.display='none';
     document.getElementById('globalFilters').style.display='none';
     document.getElementById('mineFilters').style.display='block';
-    document.getElementById('minestats').style.display='grid';
+    document.getElementById('minestats').style.display=window.innerWidth<=768?'flex':'grid';
     updateMineFilterCounters();
     const recibidos=myTickets();
     const generados=myCreated();
@@ -1367,7 +1390,7 @@ function renderTable(){
     document.getElementById('topstats').style.display='none';
     document.getElementById('globalFilters').style.display='none';
     document.getElementById('mineFilters').style.display='block';
-    document.getElementById('minestats').style.display='grid';
+    document.getElementById('minestats').style.display=window.innerWidth<=768?'flex':'grid';
 
     // Recibidos = asignados a esa persona | Generados = creados por esa persona y asignados a otros
     const advRecibidos = tickets.filter(t=>t.assignee===S.adv);
@@ -1452,7 +1475,7 @@ function renderTable(){
 
   // ── DEFAULT TABLE VIEW ────────────────────────────────────────────────────────
   document.querySelector('.th').style.display='';
-  document.getElementById('topstats').style.display='grid';
+  document.getElementById('topstats').style.display=window.innerWidth<=768?'flex':'grid';
   document.getElementById('minestats').style.display='none';
   document.getElementById('globalFilters').style.display='flex';
   document.getElementById('mineFilters').style.display='none';
@@ -2390,6 +2413,107 @@ function osNotify(title, body){
   if(Notification.permission==='granted') send();
   else if(Notification.permission!=='denied') Notification.requestPermission().then(p=>{ if(p==='granted') send(); });
 }
+function registerSW(){
+  if(!('serviceWorker' in navigator)||!SB_URL||!SB_KEY||!currentName) return;
+  // Service Worker code as blob
+  const swCode = `
+const SB_URL = '${SB_URL}';
+const SB_KEY = '${SB_KEY}';
+const USER = '${currentName}';
+let lastIds = null;
+let lastMentionIds = null;
+
+async function fetchTickets(){
+  try{
+    const r = await fetch(SB_URL+'/rest/v1/tickets?assignee=eq.'+encodeURIComponent(USER)+'&status=neq.Listo&order=created_at.desc&limit=50',{
+      headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}
+    });
+    return await r.json();
+  }catch(e){ return null; }
+}
+
+async function fetchMentions(){
+  try{
+    const r = await fetch(SB_URL+'/rest/v1/mention_tasks?mentioned_user=eq.'+encodeURIComponent(USER)+'&resolved_at=is.null&order=created_at.desc&limit=20',{
+      headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}
+    });
+    return await r.json();
+  }catch(e){ return null; }
+}
+
+async function check(){
+  // New tickets
+  const tickets = await fetchTickets();
+  if(tickets){
+    const ids = tickets.map(t=>t.doc_id).join(',');
+    if(lastIds !== null && ids !== lastIds){
+      const prev = lastIds.split(',');
+      const newOnes = tickets.filter(t=>!prev.includes(t.doc_id));
+      newOnes.forEach(t=>{
+        self.registration.showNotification('📬 Nuevo ticket asignado',{
+          body: t.title + ' · ' + t.category,
+          icon: '/taskflow/icon.png',
+          tag: 'ticket-'+t.doc_id
+        });
+      });
+    }
+    lastIds = ids;
+  }
+  // New mentions
+  const mentions = await fetchMentions();
+  if(mentions){
+    const mids = mentions.map(m=>m.id).join(',');
+    if(lastMentionIds !== null && mids !== lastMentionIds){
+      const prev = lastMentionIds.split(',');
+      const newOnes = mentions.filter(m=>!prev.includes(m.id));
+      newOnes.forEach(m=>{
+        self.registration.showNotification('💬 Te mencionaron',{
+          body: '@'+m.mentioned_by+' te etiquetó en un ticket',
+          icon: '/taskflow/icon.png',
+          tag: 'mention-'+m.id
+        });
+      });
+    }
+    lastMentionIds = mids;
+  }
+}
+
+self.addEventListener('install', e=>{ self.skipWaiting(); e.waitUntil(check()); });
+self.addEventListener('activate', e=>{ e.waitUntil(self.clients.claim()); });
+
+// Poll every 20 seconds via setInterval inside SW
+setInterval(check, 20000);
+
+// Listen for messages from main page
+self.addEventListener('message', e=>{
+  if(e.data && e.data.type==='UPDATE_CONFIG'){
+    // Re-check immediately when main page sends update
+    check();
+  }
+});
+
+self.addEventListener('notificationclick', e=>{
+  e.notification.close();
+  e.waitUntil(clients.openWindow('/taskflow/TaskFlow.html'));
+});
+`;
+
+  try{
+    const blob = new Blob([swCode], {type:'application/javascript'});
+    const swUrl = URL.createObjectURL(blob);
+    navigator.serviceWorker.register(swUrl, {scope:'/taskflow/'})
+      .then(reg=>{
+        window._swReg = reg;
+        console.log('[SW] Registrado OK');
+        // Cuando hay cambios, notificar al SW
+        window._notifySW = ()=>{
+          if(reg.active) reg.active.postMessage({type:'UPDATE_CONFIG'});
+        };
+      })
+      .catch(e=> console.warn('[SW] No se pudo registrar:',e.message));
+  }catch(e){ console.warn('[SW] Error:',e.message); }
+}
+
 function requestOSNotifPermission(){
   if('Notification' in window && Notification.permission==='default'){
     Notification.requestPermission().then(p=>{
