@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Torre Central — Autolab</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@400;600;700;800&display=swap');
+
+:root {
+  --bg: #07090f;
+  --s:  #0d1017;
+  --s2: #111520;
+  --s3: #161b28;
+  --b:  #1e2535;
+  --b2: #28304a;
+  --tx: #dde4f0;
+  --mu: #4a5470;
+  --mu2:#7a859e;
+  --ac: #00c8ff;
+  --ac2:#0096cc;
+  --red:#ff3d5a;
+  --redbg:rgba(255,61,90,.08);
+  --redbr:rgba(255,61,90,.25);
+  --blu:#2979ff;
+  --blubg:rgba(41,121,255,.08);
+  --blubr:rgba(41,121,255,.25);
+  --grn:#00e59b;
+  --grnbg:rgba(0,229,155,.07);
+  --yel:#ffb627;
+  --yelbg:rgba(255,182,39,.08);
+  --mono:'JetBrains Mono',monospace;
+  --sans:'Syne',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--sans);background:var(--bg);color:var(--tx);min-height:100vh;overflow:hidden;}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes slideIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes redPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,61,90,.3)}50%{box-shadow:0 0 0 3px rgba(255,61,90,.08)}}
+@keyframes scan{0%{background-position:0 0}100%{background-position:0 80px}}
+
+/* ── SETUP ── */
+#setup{position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;align-items:center;justify-content:center;}
+#setup.hide{display:none}
+.setup-box{background:var(--s);border:1px solid var(--b2);border-radius:16px;padding:2rem;width:520px;max-width:95vw;}
+.setup-logo{font-size:1rem;font-weight:800;color:var(--ac);letter-spacing:2px;text-transform:uppercase;margin-bottom:1.5rem;display:flex;align-items:center;gap:.5rem;}
+.setup-logo .dot{width:8px;height:8px;background:var(--ac);border-radius:50%;}
+.setup-title{font-size:1.3rem;font-weight:800;margin-bottom:.3rem;}
+.setup-sub{font-size:.8rem;color:var(--mu2);line-height:1.6;margin-bottom:1.5rem;}
+.setup-label{font-size:.65rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--mu);margin-bottom:.3rem;display:block;}
+.setup-input{width:100%;background:var(--s2);border:1px solid var(--b);border-radius:8px;padding:.6rem .9rem;font-size:.82rem;color:var(--tx);font-family:var(--mono);outline:none;transition:border-color .15s;margin-bottom:.9rem;}
+.setup-input:focus{border-color:var(--ac);}
+.setup-input::placeholder{color:var(--mu);}
+.setup-btn{width:100%;background:var(--ac);color:#000;padding:.7rem;border-radius:9px;font-size:.9rem;font-weight:800;border:none;cursor:pointer;font-family:var(--sans);letter-spacing:.5px;transition:all .15s;}
+.setup-btn:hover{background:#00aadd;}
+.setup-note{font-size:.72rem;color:var(--mu);margin-top:.8rem;line-height:1.6;}
+.setup-note a{color:var(--ac);text-decoration:none;}
+.setup-divider{border:none;border-top:1px solid var(--b);margin:1rem 0;}
+.setup-opt{font-size:.72rem;color:var(--mu2);margin-bottom:.4rem;}
+.setup-err{color:var(--red);font-size:.74rem;margin-top:.4rem;display:none;}
+
+/* ── LAYOUT ── */
+#app{display:none;height:100vh;display:grid;grid-template-rows:48px 1fr;grid-template-columns:200px 1fr;}
+#app.show{display:grid;}
+
+/* ── TOPBAR ── */
+#topbar{grid-column:1/-1;display:flex;align-items:center;gap:1rem;padding:0 1rem;background:var(--s);border-bottom:1px solid var(--b);z-index:10;}
+.top-logo{font-size:.85rem;font-weight:800;color:var(--ac);letter-spacing:2px;text-transform:uppercase;flex-shrink:0;}
+.top-logo span{color:var(--mu2);}
+.top-sep{width:1px;height:20px;background:var(--b2);}
+.top-stat{display:flex;align-items:center;gap:.35rem;font-size:.7rem;font-family:var(--mono);}
+.top-stat .n{font-weight:700;font-size:.85rem;}
+.top-stat.red .n{color:var(--red);}
+.top-stat.blu .n{color:var(--blu);}
+.top-stat.grn .n{color:var(--grn);}
+.top-stat .lbl{color:var(--mu2);}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:.7rem;}
+.refresh-btn{background:none;border:1px solid var(--b2);border-radius:6px;padding:.25rem .6rem;font-size:.68rem;color:var(--mu2);cursor:pointer;font-family:var(--mono);transition:all .12s;display:flex;align-items:center;gap:.3rem;}
+.refresh-btn:hover{border-color:var(--ac);color:var(--ac);}
+.refresh-btn.spinning .ico{animation:spin .8s linear infinite;}
+.timer{font-size:.65rem;font-family:var(--mono);color:var(--mu);}
+.top-user{font-size:.72rem;color:var(--mu2);display:flex;align-items:center;gap:.35rem;}
+.top-user .av{width:22px;height:22px;background:var(--ac);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;color:#000;}
+.filter-bar{display:flex;align-items:center;gap:.5rem;margin-left:.5rem;}
+.filter-select{background:var(--s2);border:1px solid var(--b);border-radius:6px;padding:.2rem .5rem;font-size:.68rem;color:var(--tx);font-family:var(--sans);outline:none;cursor:pointer;}
+.filter-select:focus{border-color:var(--ac);}
+
+/* ── SIDEBAR ── */
+#sidebar{background:var(--s);border-right:1px solid var(--b);display:flex;flex-direction:column;overflow:hidden;}
+.nav-section{padding:.6rem .8rem .2rem;font-size:.58rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--mu);}
+.nav-item{display:flex;align-items:center;gap:.55rem;padding:.5rem .9rem;font-size:.78rem;cursor:pointer;border-radius:7px;margin:.1rem .5rem;transition:all .12s;color:var(--mu2);font-weight:600;}
+.nav-item:hover{background:var(--s2);color:var(--tx);}
+.nav-item.active{background:rgba(0,200,255,.08);color:var(--ac);}
+.nav-item .ico{font-size:1rem;flex-shrink:0;}
+.nav-item .badge{margin-left:auto;background:var(--red);color:#fff;font-size:.58rem;font-weight:800;padding:.05rem .35rem;border-radius:8px;font-family:var(--mono);}
+.nav-item .badge.blu{background:var(--blu);}
+.nav-bottom{margin-top:auto;padding:.8rem;border-top:1px solid var(--b);}
+.last-update{font-size:.62rem;color:var(--mu);font-family:var(--mono);}
+
+/* ── MAIN ── */
+#main{overflow:hidden;display:flex;flex-direction:column;}
+
+/* ── TORRE VIEW ── */
+#view-torre{display:flex;flex-direction:column;height:100%;overflow:hidden;}
+.torre-header{padding:.6rem 1rem;display:flex;align-items:center;gap:.8rem;border-bottom:1px solid var(--b);flex-shrink:0;}
+.torre-title{font-size:.8rem;font-weight:800;letter-spacing:1px;text-transform:uppercase;}
+.legend{display:flex;align-items:center;gap:.8rem;margin-left:auto;}
+.leg{display:flex;align-items:center;gap:.3rem;font-size:.65rem;color:var(--mu2);}
+.leg-dot{width:8px;height:8px;border-radius:50%;}
+.leg-dot.red{background:var(--red);}
+.leg-dot.blu{background:var(--blu);}
+.leg-dot.ok{background:var(--mu);}
+.phases-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;flex:1;overflow:hidden;background:var(--b);}
+.phase-col{background:var(--bg);display:flex;flex-direction:column;overflow:hidden;}
+.phase-head{padding:.6rem .8rem;border-bottom:1px solid var(--b);flex-shrink:0;background:var(--s);}
+.phase-name{font-size:.68rem;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--mu2);}
+.phase-count{font-size:.6rem;color:var(--mu);font-family:var(--mono);margin-top:.1rem;}
+.phase-count .r{color:var(--red);font-weight:700;}
+.phase-count .b{color:var(--blu);font-weight:700;}
+.phase-cards{flex:1;overflow-y:auto;padding:.5rem .4rem;display:flex;flex-direction:column;gap:.4rem;}
+
+/* ── CARDS ── */
+.card{border-radius:8px;padding:.5rem .6rem;cursor:pointer;transition:all .12s;position:relative;border:1px solid transparent;animation:slideIn .2s ease;}
+.card:hover{transform:translateY(-1px);filter:brightness(1.05);}
+.card.lagging{background:var(--redbg);border-color:var(--redbr);animation:redPulse 2.5s infinite;}
+.card.leading{background:var(--blubg);border-color:var(--blubr);}
+.card.ok{background:var(--s2);border-color:var(--b);}
+.card-top{display:flex;align-items:center;gap:.3rem;margin-bottom:.25rem;}
+.card-alert{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.card-alert.red{background:var(--red);box-shadow:0 0 5px var(--red);}
+.card-alert.blu{background:var(--blu);box-shadow:0 0 5px var(--blu);}
+.card-alert.ok{background:var(--mu);}
+.card-plate{font-size:.75rem;font-weight:700;font-family:var(--mono);letter-spacing:.5px;flex:1;}
+.card-badges{display:flex;gap:.2rem;align-items:center;}
+.badge-light{font-size:.55rem;background:rgba(0,200,255,.12);color:var(--ac);border:1px solid rgba(0,200,255,.25);border-radius:4px;padding:.05rem .28rem;font-weight:700;flex-shrink:0;}
+.badge-upsale{font-size:.55rem;background:var(--yelbg);color:var(--yel);border:1px solid rgba(255,182,39,.25);border-radius:4px;padding:.05rem .28rem;font-weight:700;flex-shrink:0;}
+.badge-bundle{font-size:.55rem;background:rgba(0,229,155,.1);color:var(--grn);border:1px solid rgba(0,229,155,.2);border-radius:4px;padding:.05rem .28rem;font-weight:700;flex-shrink:0;}
+.card-model{font-size:.68rem;color:var(--mu2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.card-taller{font-size:.62rem;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.1rem;}
+.card-meta{display:flex;align-items:center;gap:.4rem;margin-top:.3rem;flex-wrap:wrap;}
+.card-chip{font-size:.58rem;font-family:var(--mono);padding:.08rem .3rem;border-radius:4px;background:var(--s3);}
+.card-chip.time{color:var(--yel);}
+.card-chip.red{color:var(--red);background:var(--redbg);}
+.card-chip.grn{color:var(--grn);}
+.card-chip.blu{color:var(--blu);}
+.card-chip.price{color:var(--ac);}
+.card-msg{font-size:.6rem;color:var(--red);margin-top:.25rem;font-weight:600;}
+.card-msg.blu{color:var(--blu);}
+
+/* ── TOOLTIP ── */
+#tooltip{position:fixed;background:var(--s3);border:1px solid var(--b2);border-radius:10px;padding:.75rem 1rem;font-size:.72rem;pointer-events:none;z-index:500;opacity:0;transition:opacity .12s;min-width:200px;max-width:260px;box-shadow:0 8px 32px rgba(0,0,0,.4);}
+#tooltip.show{opacity:1;}
+.tt-row{display:flex;justify-content:space-between;gap:.8rem;margin-bottom:.2rem;}
+.tt-label{color:var(--mu2);}
+.tt-val{font-weight:600;font-family:var(--mono);font-size:.68rem;text-align:right;}
+.tt-alert{font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-top:.4rem;padding:.2rem .4rem;border-radius:5px;text-align:center;}
+.tt-alert.red{background:var(--redbg);color:var(--red);border:1px solid var(--redbr);}
+.tt-alert.blu{background:var(--blubg);color:var(--blu);border:1px solid var(--blubr);}
+
+/* ── MODAL APPOINTMENT ── */
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:400;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+#modal.show{display:flex;}
+.modal-box{background:var(--s);border:1px solid var(--b2);border-radius:16px;width:600px;max-width:95vw;max-height:88vh;overflow-y:auto;animation:slideIn .2s ease;}
+.modal-head{padding:1.2rem 1.4rem .8rem;border-bottom:1px solid var(--b);display:flex;align-items:flex-start;gap:.8rem;position:sticky;top:0;background:var(--s);z-index:1;}
+.modal-alert-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:.25rem;}
+.modal-alert-dot.red{background:var(--red);box-shadow:0 0 8px var(--red);}
+.modal-alert-dot.blu{background:var(--blu);box-shadow:0 0 8px var(--blu);}
+.modal-alert-dot.ok{background:var(--mu);}
+.modal-plate{font-size:1.4rem;font-weight:800;font-family:var(--mono);letter-spacing:1px;}
+.modal-sub{font-size:.78rem;color:var(--mu2);margin-top:.15rem;}
+.modal-close{margin-left:auto;background:none;border:none;color:var(--mu2);font-size:1.2rem;cursor:pointer;padding:.2rem;line-height:1;}
+.modal-close:hover{color:var(--tx);}
+.modal-body{padding:1.2rem 1.4rem;}
+.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:1rem;}
+.modal-field{background:var(--s2);border-radius:8px;padding:.5rem .7rem;}
+.modal-field-label{font-size:.6rem;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--mu);margin-bottom:.15rem;}
+.modal-field-val{font-size:.82rem;font-family:var(--mono);}
+.modal-section-title{font-size:.65rem;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--mu);margin:.8rem 0 .4rem;}
+.modal-alert-box{border-radius:9px;padding:.6rem .9rem;margin-bottom:.8rem;}
+.modal-alert-box.red{background:var(--redbg);border:1px solid var(--redbr);}
+.modal-alert-box.blu{background:var(--blubg);border:1px solid var(--blubr);}
+.modal-alert-title{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:.15rem;}
+.modal-alert-title.red{color:var(--red);}
+.modal-alert-title.blu{color:var(--blu);}
+.modal-alert-msg{font-size:.75rem;color:var(--mu2);}
+
+/* Notes */
+.notes-area{background:var(--s2);border:1px solid var(--b);border-radius:8px;padding:.5rem .7rem;margin-bottom:.6rem;}
+.note-item{border-bottom:1px solid var(--b);padding:.4rem 0;font-size:.75rem;line-height:1.5;}
+.note-item:last-child{border-bottom:none;}
+.note-meta{font-size:.62rem;color:var(--mu);font-family:var(--mono);margin-bottom:.15rem;}
+.note-text{color:var(--tx);}
+.note-input{width:100%;background:var(--s3);border:1px solid var(--b);border-radius:8px;padding:.5rem .7rem;font-size:.8rem;color:var(--tx);font-family:var(--sans);outline:none;resize:vertical;min-height:60px;transition:border-color .12s;}
+.note-input:focus{border-color:var(--ac);}
+.note-add-btn{margin-top:.4rem;background:var(--ac);color:#000;border:none;border-radius:7px;padding:.35rem .8rem;font-size:.75rem;font-weight:700;cursor:pointer;font-family:var(--sans);}
+.note-add-btn:hover{background:#00aadd;}
+
+/* Task from modal */
+.task-gen-btn{width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:.5rem;font-size:.75rem;color:var(--mu2);cursor:pointer;font-family:var(--sans);text-align:left;transition:all .12s;margin-top:.3rem;}
+.task-gen-btn:hover{border-color:var(--ac);color:var(--tx);}
+.task-gen-btn span{color:var(--ac);margin-right:.3rem;}
+
+/* ── ASESORES VIEW ── */
+#view-asesores{display:none;padding:1rem;overflow-y:auto;height:100%;}
+#view-asesores.show{display:block;}
+.view-title{font-size:1rem;font-weight:800;margin-bottom:.2rem;}
+.view-sub{font-size:.75rem;color:var(--mu2);margin-bottom:1.2rem;}
+.asesores-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:.8rem;}
+.asesor-card{background:var(--s);border:1px solid var(--b);border-radius:12px;padding:1rem;animation:slideIn .2s ease;}
+.asesor-head{display:flex;align-items:center;gap:.6rem;margin-bottom:.8rem;}
+.asesor-av{width:34px;height:34px;border-radius:50%;background:var(--ac);display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:800;color:#000;flex-shrink:0;}
+.asesor-name{font-weight:700;font-size:.88rem;}
+.asesor-total{font-size:.68rem;color:var(--mu2);font-family:var(--mono);}
+.asesor-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;margin-bottom:.7rem;}
+.asesor-stat{background:var(--s2);border-radius:7px;padding:.4rem;text-align:center;}
+.asesor-stat .n{font-size:1.1rem;font-weight:800;font-family:var(--mono);}
+.asesor-stat .n.red{color:var(--red);}
+.asesor-stat .n.blu{color:var(--blu);}
+.asesor-stat .n.grn{color:var(--grn);}
+.asesor-stat .l{font-size:.58rem;color:var(--mu);margin-top:.05rem;}
+.asesor-list{display:flex;flex-direction:column;gap:.3rem;}
+.asesor-vehicle{display:flex;align-items:center;gap:.4rem;background:var(--s2);border-radius:7px;padding:.35rem .5rem;font-size:.7rem;cursor:pointer;transition:background .12s;border:1px solid transparent;}
+.asesor-vehicle:hover{background:var(--s3);border-color:var(--b2);}
+.asesor-vehicle .dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.asesor-vehicle .dot.red{background:var(--red);}
+.asesor-vehicle .dot.blu{background:var(--blu);}
+.asesor-vehicle .dot.ok{background:var(--mu);}
+.asesor-vehicle .plate{font-family:var(--mono);font-weight:700;flex:1;}
+.asesor-vehicle .phase{color:var(--mu2);font-size:.62rem;}
+.reassign-btn{width:100%;margin-top:.6rem;background:none;border:1px solid var(--b2);border-radius:7px;padding:.35rem;font-size:.7rem;color:var(--mu2);cursor:pointer;font-family:var(--sans);transition:all .12s;}
+.reassign-btn:hover{border-color:var(--ac);color:var(--ac);}
+
+/* ── TAREAS VIEW ── */
+#view-tareas{display:none;padding:1rem;overflow-y:auto;height:100%;}
+#view-tareas.show{display:block;}
+.tasks-controls{display:flex;gap:.6rem;margin-bottom:1rem;align-items:center;}
+.tasks-filter-btn{background:var(--s2);border:1px solid var(--b);border-radius:7px;padding:.3rem .7rem;font-size:.72rem;color:var(--mu2);cursor:pointer;font-family:var(--sans);transition:all .12s;}
+.tasks-filter-btn.active{background:rgba(0,200,255,.1);border-color:var(--ac);color:var(--ac);}
+.new-task-btn{margin-left:auto;background:var(--ac);color:#000;border:none;border-radius:7px;padding:.35rem .8rem;font-size:.75rem;font-weight:700;cursor:pointer;font-family:var(--sans);}
+.tasks-list{display:flex;flex-direction:column;gap:.4rem;}
+.task-item{background:var(--s);border:1px solid var(--b);border-radius:10px;padding:.7rem .9rem;display:flex;align-items:flex-start;gap:.7rem;animation:slideIn .15s ease;}
+.task-item.done{opacity:.5;}
+.task-check{width:16px;height:16px;border-radius:4px;border:2px solid var(--b2);background:none;cursor:pointer;flex-shrink:0;margin-top:.1rem;display:flex;align-items:center;justify-content:center;transition:all .12s;}
+.task-check:hover{border-color:var(--ac);}
+.task-check.done{background:var(--grn);border-color:var(--grn);}
+.task-content{flex:1;}
+.task-title{font-size:.8rem;font-weight:600;margin-bottom:.2rem;}
+.task-meta{font-size:.65rem;color:var(--mu2);font-family:var(--mono);}
+.task-meta .assignee{color:var(--ac);}
+.task-meta .plate-ref{background:var(--s2);border-radius:4px;padding:.03rem .25rem;}
+.task-priority{font-size:.58rem;font-weight:800;padding:.08rem .35rem;border-radius:5px;text-transform:uppercase;letter-spacing:.5px;flex-shrink:0;}
+.task-priority.alta{background:var(--redbg);color:var(--red);border:1px solid var(--redbr);}
+.task-priority.media{background:var(--yelbg);color:var(--yel);}
+.task-priority.baja{background:var(--grnbg);color:var(--grn);}
+.task-delete{background:none;border:none;color:var(--mu);cursor:pointer;font-size:.8rem;padding:.1rem;transition:color .12s;flex-shrink:0;}
+.task-delete:hover{color:var(--red);}
+
+/* New task modal */
+#new-task-modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:600;display:none;align-items:center;justify-content:center;}
+#new-task-modal.show{display:flex;}
+.ntm-box{background:var(--s);border:1px solid var(--b2);border-radius:14px;width:440px;max-width:95vw;padding:1.4rem;}
+.ntm-title{font-size:.95rem;font-weight:800;margin-bottom:1rem;}
+.ntm-label{font-size:.65rem;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--mu);margin-bottom:.3rem;display:block;}
+.ntm-input{width:100%;background:var(--s2);border:1px solid var(--b);border-radius:8px;padding:.5rem .8rem;font-size:.82rem;color:var(--tx);font-family:var(--sans);outline:none;transition:border-color .15s;margin-bottom:.7rem;}
+.ntm-input:focus{border-color:var(--ac);}
+.ntm-select{width:100%;background:var(--s2);border:1px solid var(--b);border-radius:8px;padding:.5rem .8rem;font-size:.82rem;color:var(--tx);font-family:var(--sans);outline:none;margin-bottom:.7rem;cursor:pointer;}
+.ntm-row{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;}
+.ntm-actions{display:flex;gap:.5rem;margin-top:.3rem;}
+.ntm-cancel{flex:1;background:var(--s2);border:1px solid var(--b);border-radius:8px;padding:.5rem;font-size:.8rem;color:var(--mu2);cursor:pointer;font-family:var(--sans);transition:all .12s;}
+.ntm-cancel:hover{color:var(--tx);}
+.ntm-submit{flex:2;background:var(--ac);border:none;border-radius:8px;padding:.5rem;font-size:.8rem;font-weight:700;color:#000;cursor:pointer;font-family:var(--sans);}
+.ntm-submit:hover{background:#00aadd;}
+
+/* Reassign modal */
+#reassign-modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:600;display:none;align-items:center;justify-content:center;}
+#reassign-modal.show{display:flex;}
+.rm-box{background:var(--s);border:1px solid var(--b2);border-radius:14px;width:380px;max-width:95vw;padding:1.4rem;}
+.rm-title{font-size:.95rem;font-weight:800;margin-bottom:.4rem;}
+.rm-sub{font-size:.75rem;color:var(--mu2);margin-bottom:1rem;}
+.rm-list{display:flex;flex-direction:column;gap:.3rem;max-height:200px;overflow-y:auto;}
+.rm-option{background:var(--s2);border:1px solid var(--b);border-radius:8px;padding:.5rem .8rem;cursor:pointer;font-size:.8rem;transition:all .12s;display:flex;align-items:center;gap:.5rem;}
+.rm-option:hover{border-color:var(--ac);color:var(--ac);}
+.rm-av{width:22px;height:22px;border-radius:50%;background:var(--ac);display:flex;align-items:center;justify-content:center;font-size:.58rem;font-weight:800;color:#000;}
+.rm-cancel{width:100%;margin-top:.7rem;background:none;border:1px solid var(--b);border-radius:8px;padding:.45rem;font-size:.78rem;color:var(--mu2);cursor:pointer;font-family:var(--sans);transition:all .12s;}
+.rm-cancel:hover{color:var(--tx);}
+
+/* ── EMPTY STATES ── */
+.empty-phase{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--mu);font-size:.7rem;gap:.3rem;padding:1rem;}
+.empty-phase .ico{font-size:1.8rem;opacity:.3;}
+.loading-phase{flex:1;display:flex;align-items:center;justify-content:center;}
+.spinner{width:20px;height:20px;border:2px solid var(--b2);border-top-color:var(--ac);border-radius:50%;animation:spin 1s linear infinite;}
+
+/* ── ENTREGA EXPORT BTN ── */
+.export-btn{width:100%;background:rgba(0,229,155,.08);border:1px solid rgba(0,229,155,.2);border-radius:7px;padding:.4rem;font-size:.72rem;color:var(--grn);cursor:pointer;font-family:var(--sans);font-weight:700;transition:all .12s;margin-top:.4rem;}
+.export-btn:hover{background:rgba(0,229,155,.15);}
+
+/* ── MISC ── */
+.pill{display:inline-flex;align-items:center;gap:.25rem;padding:.12rem .45rem;border-radius:20px;font-size:.62rem;font-weight:700;}
+.pill.red{background:var(--redbg);color:var(--red);border:1px solid var(--redbr);}
+.pill.blu{background:var(--blubg);color:var(--blu);border:1px solid var(--blubr);}
+.no-tasks{color:var(--mu);font-size:.75rem;text-align:center;padding:2rem;}
+</style>
+</head>
+<body>
+
+<!-- SETUP -->
+<div id="setup">
+  <div class="setup-box">
+    <div class="setup-logo"><div class="dot"></div>TORRE CENTRAL — AUTOLAB</div>
+    <div class="setup-title">Configuración inicial</div>
+    <div class="setup-sub">Conecta tu Google Sheet para activar el radar de SLA en tiempo real.</div>
+    <label class="setup-label">Tu nombre</label>
+    <input class="setup-input" id="cfg-user" placeholder="Ej: Adriana Buitrago">
+    <label class="setup-label">URL del Apps Script (endpoint del Sheet)</label>
+    <input class="setup-input" id="cfg-key" placeholder="https://script.google.com/macros/s/...">
+    <div class="setup-note">
+      Esta URL la obtienes en tu Google Sheet → Extensiones → Apps Script → Implementar → Administrar implementaciones.
+    </div>
+    <div class="setup-err" id="setup-err">No se pudo conectar. Verifica la URL del Apps Script.</div>
+    <button class="setup-btn" id="setup-btn" onclick="doSetup()">Activar Torre Central →</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <!-- TOPBAR -->
+  <div id="topbar">
+    <div class="top-logo">🚁 Torre<span> Central</span></div>
+    <div class="top-sep"></div>
+    <div class="top-stat red"><span class="n" id="stat-lag">—</span><span class="lbl">lagging</span></div>
+    <div class="top-stat blu"><span class="n" id="stat-lead">—</span><span class="lbl">leading</span></div>
+    <div class="top-stat grn"><span class="n" id="stat-ok">—</span><span class="lbl">ok</span></div>
+    <div class="top-sep"></div>
+    <div class="top-stat"><span class="n" id="stat-total">—</span><span class="lbl">en operación</span></div>
+    <div class="filter-bar">
+      <select class="filter-select" id="filter-asesor" onchange="applyFilters()">
+        <option value="">Todos los asesores</option>
+      </select>
+      <select class="filter-select" id="filter-fleet" onchange="applyFilters()">
+        <option value="">Todas las flotas</option>
+      </select>
+    </div>
+    <div class="top-right">
+      <span class="timer" id="timer-txt">—</span>
+      <button class="refresh-btn" id="refresh-btn" onclick="loadData()">
+        <span class="ico">↻</span> Actualizar
+      </button>
+      <div class="top-user">
+        <div class="av" id="user-av">A</div>
+        <span id="user-name">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="nav-section">Radar</div>
+    <div class="nav-item active" onclick="showView('torre')" id="nav-torre">
+      <span class="ico">📡</span> Torre
+      <span class="badge" id="badge-lag" style="display:none">0</span>
+    </div>
+    <div class="nav-section">Equipo</div>
+    <div class="nav-item" onclick="showView('asesores')" id="nav-asesores">
+      <span class="ico">👥</span> Asesores
+    </div>
+    <div class="nav-item" onclick="showView('tareas')" id="nav-tareas">
+      <span class="ico">✅</span> Tareas
+      <span class="badge blu" id="badge-tasks" style="display:none">0</span>
+    </div>
+    <div class="nav-bottom">
+      <div class="last-update" id="last-update">Sin datos</div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div id="main">
+    <!-- TORRE VIEW -->
+    <div id="view-torre">
+      <div class="torre-header">
+        <div class="torre-title">📡 Radar de Operación</div>
+        <div class="legend">
+          <div class="leg"><div class="leg-dot red"></div>Lagging</div>
+          <div class="leg"><div class="leg-dot blu"></div>Leading</div>
+          <div class="leg"><div class="leg-dot ok"></div>En tiempo</div>
+        </div>
+      </div>
+      <div class="phases-grid">
+        <div class="phase-col" id="col-diagnostico">
+          <div class="phase-head">
+            <div class="phase-name">🔬 Diagnóstico</div>
+            <div class="phase-count" id="cnt-diagnostico">cargando...</div>
+          </div>
+          <div class="phase-cards" id="cards-diagnostico"><div class="loading-phase"><div class="spinner"></div></div></div>
+        </div>
+        <div class="phase-col" id="col-cotizacion">
+          <div class="phase-head">
+            <div class="phase-name">💰 Cotización</div>
+            <div class="phase-count" id="cnt-cotizacion">cargando...</div>
+          </div>
+          <div class="phase-cards" id="cards-cotizacion"><div class="loading-phase"><div class="spinner"></div></div></div>
+        </div>
+        <div class="phase-col" id="col-aprobacion">
+          <div class="phase-head">
+            <div class="phase-name">✍️ Aprobación</div>
+            <div class="phase-count" id="cnt-aprobacion">cargando...</div>
+          </div>
+          <div class="phase-cards" id="cards-aprobacion"><div class="loading-phase"><div class="spinner"></div></div></div>
+        </div>
+        <div class="phase-col" id="col-ejecucion">
+          <div class="phase-head">
+            <div class="phase-name">🔧 Ejecución</div>
+            <div class="phase-count" id="cnt-ejecucion">cargando...</div>
+          </div>
+          <div class="phase-cards" id="cards-ejecucion"><div class="loading-phase"><div class="spinner"></div></div></div>
+        </div>
+        <div class="phase-col" id="col-entrega">
+          <div class="phase-head">
+            <div class="phase-name">🚗 Entrega</div>
+            <div class="phase-count" id="cnt-entrega">cargando...</div>
+          </div>
+          <div class="phase-cards" id="cards-entrega"><div class="loading-phase"><div class="spinner"></div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ASESORES VIEW -->
+    <div id="view-asesores">
+      <div class="view-title">👥 Panel de Asesores</div>
+      <div class="view-sub">Distribución de coches por asesor, estado de SLA y reasignación.</div>
+      <div class="asesores-grid" id="asesores-grid"></div>
+    </div>
+
+    <!-- TAREAS VIEW -->
+    <div id="view-tareas">
+      <div class="view-title">✅ Tareas</div>
+      <div class="view-sub">Tareas asignadas a asesores para gestión de SLA.</div>
+      <div class="tasks-controls">
+        <button class="tasks-filter-btn active" onclick="filterTasks('all',this)">Todas</button>
+        <button class="tasks-filter-btn" onclick="filterTasks('pending',this)">Pendientes</button>
+        <button class="tasks-filter-btn" onclick="filterTasks('done',this)">Completadas</button>
+        <button class="new-task-btn" onclick="openNewTaskModal()">+ Nueva Tarea</button>
+      </div>
+      <div class="tasks-list" id="tasks-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TOOLTIP -->
+<div id="tooltip"></div>
+
+<!-- APPOINTMENT MODAL -->
+<div id="modal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div class="modal-alert-dot" id="m-dot"></div>
+      <div>
+        <div class="modal-plate" id="m-plate">—</div>
+        <div class="modal-sub" id="m-sub">—</div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="m-alert-box"></div>
+      <div class="modal-grid" id="m-grid"></div>
+      <div class="modal-section-title">📝 Notas del Appointment</div>
+      <div class="notes-area" id="m-notes"></div>
+      <textarea class="note-input" id="m-note-input" placeholder="Agregar nota..."></textarea>
+      <button class="note-add-btn" onclick="addNote()">Agregar nota</button>
+      <div class="modal-section-title" style="margin-top:1rem;">✅ Generar Tarea</div>
+      <div id="m-task-suggestions"></div>
+    </div>
+  </div>
+</div>
+
+<!-- NEW TASK MODAL -->
+<div id="new-task-modal">
+  <div class="ntm-box">
+    <div class="ntm-title">Nueva Tarea</div>
+    <label class="ntm-label">Título</label>
+    <input class="ntm-input" id="ntm-title" placeholder="Ej: Seguimiento cotización pendiente">
+    <label class="ntm-label">Appointment (placa)</label>
+    <input class="ntm-input" id="ntm-plate" placeholder="Opcional">
+    <div class="ntm-row">
+      <div>
+        <label class="ntm-label">Asignar a</label>
+        <select class="ntm-select" id="ntm-assignee"></select>
+      </div>
+      <div>
+        <label class="ntm-label">Prioridad</label>
+        <select class="ntm-select" id="ntm-priority">
+          <option value="alta">Alta</option>
+          <option value="media" selected>Media</option>
+          <option value="baja">Baja</option>
+        </select>
+      </div>
+    </div>
+    <div class="ntm-actions">
+      <button class="ntm-cancel" onclick="closeNewTaskModal()">Cancelar</button>
+      <button class="ntm-submit" onclick="createTask()">Crear Tarea →</button>
+    </div>
+  </div>
+</div>
+
+<!-- REASSIGN MODAL -->
+<div id="reassign-modal">
+  <div class="rm-box">
+    <div class="rm-title">Reasignar Vehículos</div>
+    <div class="rm-sub" id="rm-sub">Selecciona el nuevo asesor</div>
+    <div class="rm-list" id="rm-list"></div>
+    <button class="rm-cancel" onclick="closeReassignModal()">Cancelar</button>
+  </div>
+</div>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+const SHEET_ID = '1Xm2c1fxeQHahRj8hPSnW8Vyz-fBPqTGHMG9yrl_DDYQ';
+const SHEET_NAME = 'seguimiento';
+let CFG = {};
+let allVehicles = [];
+let filteredVehicles = [];
+let currentModal = null;
+let refreshInterval = null;
+let timerInterval = null;
+let nextRefresh = 300;
+let currentTaskFilter = 'all';
+let reassignTarget = null;
+
+// ─── SETUP ────────────────────────────────────────────────────────────────────
+async function doSetup() {
+  const user = document.getElementById('cfg-user').value.trim();
+  const key = document.getElementById('cfg-key').value.trim();
+  if (!user || !key) { showSetupErr('Nombre y URL del Apps Script son requeridos.'); return; }
+  const btn = document.getElementById('setup-btn');
+  btn.disabled = true; btn.textContent = 'Conectando...';
+  // Test with JSONP
+  const timeout = setTimeout(() => {
+    btn.disabled = false; btn.textContent = 'Activar Torre Central →';
+    showSetupErr('Timeout. Verifica la URL del Apps Script.');
+  }, 12000);
+  window._setupTest = function(rows) {
+    clearTimeout(timeout);
+    const old = document.getElementById('setup-test-script');
+    if (old) old.remove();
+    if (Array.isArray(rows) && rows.length >= 0) {
+      CFG = { user, key };
+      localStorage.setItem('torre_cfg', JSON.stringify(CFG));
+      initApp();
+    } else {
+      btn.disabled = false; btn.textContent = 'Activar Torre Central →';
+      showSetupErr('Formato inválido. Verifica el Apps Script.');
+    }
+  };
+  const script = document.createElement('script');
+  script.id = 'setup-test-script';
+  script.src = key + '?callback=_setupTest';
+  script.onerror = () => {
+    clearTimeout(timeout);
+    btn.disabled = false; btn.textContent = 'Activar Torre Central →';
+    showSetupErr('No se pudo conectar. Verifica la URL del Apps Script.');
+  };
+  document.head.appendChild(script);
+}
+
+function showSetupErr(msg) {
+  const el = document.getElementById('setup-err');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+function initApp() {
+  document.getElementById('setup').classList.add('hide');
+  document.getElementById('app').classList.add('show');
+  document.getElementById('user-name').textContent = CFG.user;
+  document.getElementById('user-av').textContent = CFG.user.charAt(0).toUpperCase();
+  loadData();
+  startTimer();
+}
+
+// ─── DATA FETCH ───────────────────────────────────────────────────────────────
+function loadData() {
+  const btn = document.getElementById('refresh-btn');
+  btn.classList.add('spinning');
+  // Remove previous JSONP script if exists
+  const old = document.getElementById('jsonp-script');
+  if (old) old.remove();
+  // Set timeout
+  const timeout = setTimeout(() => {
+    btn.classList.remove('spinning');
+    if (allVehicles.length === 0) showSetupErr('Timeout: el Apps Script tardó demasiado. Intenta de nuevo.');
+  }, 15000);
+  // JSONP callback
+  window._torreCallback = function(rows) {
+    clearTimeout(timeout);
+    try {
+      if (!Array.isArray(rows) || rows.length === 0) throw new Error('Sin datos');
+      allVehicles = rows.map(obj => {
+        Object.keys(obj).forEach(k => { if (obj[k] === null || obj[k] === undefined) obj[k] = ''; });
+        obj._phase = detectPhase(obj);
+        obj._alert = detectAlert(obj, obj._phase);
+        obj._alertMsg = getAlertMsg(obj, obj._phase, obj._alert);
+        return obj;
+      }).filter(v => v._phase !== 'resguardo' && v._phase !== 'otro');
+      processData();
+      nextRefresh = 300;
+      document.getElementById('setup-err').style.display = 'none';
+    } catch(e) {
+      console.error(e);
+      if (allVehicles.length === 0) showSetupErr('Error al procesar datos: ' + e.message);
+    }
+    btn.classList.remove('spinning');
+    document.getElementById('last-update').textContent = 'Actualizado: ' + new Date().toLocaleTimeString('es-MX');
+  };
+  const script = document.createElement('script');
+  script.id = 'jsonp-script';
+  script.src = CFG.key + '?callback=_torreCallback';
+  script.onerror = () => {
+    clearTimeout(timeout);
+    btn.classList.remove('spinning');
+    if (allVehicles.length === 0) showSetupErr('Error de conexión con el Apps Script.');
+  };
+  document.head.appendChild(script);
+}
+
+// ─── PHASE DETECTION ──────────────────────────────────────────────────────────
+function detectPhase(r) {
+  const estado = (r['estado'] || '').toLowerCase();
+  const estadoSLA = r['Estado SLA'] || '';
+  const sla3 = r['SLA 3'] || '';
+  const estado2 = r['ESTADO 2'] || '';
+  const servicio = (r['SERVICIO'] || '').toUpperCase();
+
+  if (servicio === 'ESTACIONAMIENTO') return 'resguardo';
+  if (estado.includes('por entregar') || estado.includes('para entregar')) return 'entrega';
+  if (estadoSLA.includes('Por entregar')) return 'entrega';
+
+  if (estadoSLA.includes('SLA Entrega') || sla3 === 'TRABAJANDOSE' || estado2 === 'TRABAJANDOSE' || estado === 'entre trabajos') return 'ejecucion';
+
+  if (estadoSLA.includes('sin aprobar') || estadoSLA.includes('Sin aprobar') ||
+      sla3 === 'ESPERANDO APROBACION' || estado2 === 'ESPERANDO APROBACION') return 'aprobacion';
+
+  if (estadoSLA.includes('Por empezar')) return 'diagnostico';
+
+  if (estadoSLA.includes('SLA Cotizaci') || estadoSLA.includes('Cotizaci') ||
+      sla3 === 'COTIZANDO / DIAGNOSTICANDO' || estado2 === 'COTIZANDO / DIAGNOSTICANDO') return 'cotizacion';
+
+  if (sla3.includes('RESGUARDO') || estado2.includes('RESGUARDO')) return 'resguardo';
+  return 'otro';
+}
+
+// ─── ALERT DETECTION ──────────────────────────────────────────────────────────
+function detectAlert(r, phase) {
+  const estadoSLA = r['Estado SLA'] || '';
+  const dias = parseFloat(r['dias habiles desde recepcion']) || 0;
+  const diasAprobacion = parseFloat(r['dias habiles desde aprobacion']) || 0;
+  const pctEntrega = parseFloat(r['pct_sla_entrega']) || 0;
+  const pctQuote = parseFloat(r['pct_sla_quote_teoric_expiration']) || 0;
+  const servicio = (r['SERVICIO'] || '').toUpperCase();
+
+  if (phase === 'diagnostico') {
+    if (estadoSLA.includes('más de 30 min')) return 'lagging';
+    return 'ok';
+  }
+
+  if (phase === 'cotizacion') {
+    if (dias > 1) return 'lagging';
+    if (estadoSLA.includes('pronto a vencer más de 80%')) return 'leading';
+    if (pctQuote >= 0.6) return 'leading';
+    return 'ok';
+  }
+
+  if (phase === 'aprobacion') {
+    if (estadoSLA.includes('Más de 4 horas')) return 'lagging';
+    if (estadoSLA.includes('Menos de 2 horas')) return 'leading';
+    const converted = r['quote_max_converted_at'];
+    if (converted) {
+      const d = new Date(converted);
+      if (!isNaN(d)) {
+        const hrs = (Date.now() - d.getTime()) / 3600000;
+        if (hrs > 24) return 'lagging';
+        if (hrs / 24 >= 0.6) return 'leading';
+      }
+    }
+    return 'ok';
+  }
+
+  if (phase === 'ejecucion') {
+    if (estadoSLA === 'SLA Entrega Vencido') return 'lagging';
+    if (estadoSLA.includes('pronto a vencer')) return 'leading';
+    const maxDias = servicio === 'HYP COMPLEJO' ? 14 : (servicio.includes('HYP') ? 5 : 5);
+    if (dias > maxDias) return 'lagging';
+    if (dias >= maxDias * 0.7) return 'leading';
+    const slaEntregaStr = r['sla_entrega'];
+    if (slaEntregaStr) {
+      const slaDate = new Date(slaEntregaStr);
+      if (!isNaN(slaDate)) {
+        const now = Date.now();
+        if (now > slaDate.getTime()) return 'lagging';
+        const reception = new Date(r['reception_time']);
+        if (!isNaN(reception)) {
+          const total = slaDate.getTime() - reception.getTime();
+          const elapsed = now - reception.getTime();
+          if (total > 0 && elapsed / total >= 0.75) return 'leading';
+        }
+      }
+    }
+    return 'ok';
+  }
+
+  if (phase === 'entrega') {
+    const estado = (r['estado'] || '').toLowerCase();
+    if (estado.includes('sin confirmacion')) return 'lagging';
+    return 'ok';
+  }
+  return 'ok';
+}
+
+function getAlertMsg(r, phase, alert) {
+  const estadoSLA = r['Estado SLA'] || '';
+  const dias = parseFloat(r['dias habiles desde recepcion']) || 0;
+
+  if (alert === 'lagging') {
+    if (phase === 'diagnostico') return '⚠ Sin iniciar revisión (+30 min)';
+    if (phase === 'cotizacion') return `⚠ SLA cotización vencido (${dias.toFixed(1)}d)`;
+    if (phase === 'aprobacion') return '⚠ Sin aprobación +24h';
+    if (phase === 'ejecucion') return '⚠ SLA de entrega vencido';
+    if (phase === 'entrega') return '⚠ Sin confirmación de recolección';
+  }
+  if (alert === 'leading') {
+    if (phase === 'cotizacion') return `↗ Cotización al ${Math.round(parseFloat(r['pct_sla_quote_teoric_expiration']||0)*100)}% del SLA`;
+    if (phase === 'aprobacion') return '↗ Aprobación próxima a vencer (60%)';
+    if (phase === 'ejecucion') return '↗ SLA de entrega próximo a vencer';
+  }
+  return '';
+}
+
+// ─── PROCESS & RENDER ────────────────────────────────────────────────────────
+function processData() {
+  applyFilters();
+  updateFilters();
+}
+
+function applyFilters() {
+  const asesorF = document.getElementById('filter-asesor').value;
+  const fleetF = document.getElementById('filter-fleet').value;
+  filteredVehicles = allVehicles.filter(v => {
+    if (asesorF && v['superadmin'] !== asesorF) return false;
+    if (fleetF && v['fleet'] !== fleetF) return false;
+    return true;
+  });
+  renderTorre();
+  renderAsesores();
+}
+
+function updateFilters() {
+  const asesores = [...new Set(allVehicles.map(v => v['superadmin']).filter(Boolean))].sort();
+  const fleets = [...new Set(allVehicles.map(v => v['fleet']).filter(Boolean))].sort();
+  const aEl = document.getElementById('filter-asesor');
+  const fEl = document.getElementById('filter-fleet');
+  const ntmEl = document.getElementById('ntm-assignee');
+  const aVal = aEl.value;
+  aEl.innerHTML = '<option value="">Todos los asesores</option>' + asesores.map(a => `<option value="${a}" ${a===aVal?'selected':''}>${a}</option>`).join('');
+  fEl.innerHTML = '<option value="">Todas las flotas</option>' + fleets.map(f => `<option value="${f}">${f}</option>`).join('');
+  ntmEl.innerHTML = '<option value="">Sin asignar</option>' + asesores.map(a => `<option value="${a}">${a}</option>`).join('');
+}
+
+function renderTorre() {
+  const phases = ['diagnostico','cotizacion','aprobacion','ejecucion','entrega'];
+  let totalLag=0, totalLead=0, totalOk=0;
+
+  phases.forEach(phase => {
+    const vehicles = filteredVehicles.filter(v => v._phase === phase);
+    const lagging = vehicles.filter(v => v._alert === 'lagging');
+    const leading = vehicles.filter(v => v._alert === 'leading');
+    const ok = vehicles.filter(v => v._alert === 'ok');
+    totalLag += lagging.length; totalLead += leading.length; totalOk += ok.length;
+
+    const cntEl = document.getElementById('cnt-' + phase);
+    cntEl.innerHTML = `<span class="r">${lagging.length} lag</span> · <span class="b">${leading.length} lead</span> · ${ok.length} ok`;
+
+    const cardsEl = document.getElementById('cards-' + phase);
+    // Sort: lagging first, then leading, then ok
+    const sorted = [...lagging, ...leading, ...ok];
+    if (sorted.length === 0) {
+      cardsEl.innerHTML = `<div class="empty-phase"><div class="ico">✓</div><div>Sin alertas</div></div>`;
+      return;
+    }
+    cardsEl.innerHTML = sorted.map(v => renderCard(v)).join('');
+  });
+
+  document.getElementById('stat-lag').textContent = totalLag;
+  document.getElementById('stat-lead').textContent = totalLead;
+  document.getElementById('stat-ok').textContent = totalOk;
+  document.getElementById('stat-total').textContent = filteredVehicles.length;
+
+  const bagLag = document.getElementById('badge-lag');
+  if (totalLag > 0) { bagLag.textContent = totalLag; bagLag.style.display = ''; }
+  else bagLag.style.display = 'none';
+}
+
+function renderCard(v) {
+  const alert = v._alert;
+  const plate = v['vehicle_plates'] || v['appointment_id'];
+  const model = v['modelo'] || '—';
+  const taller = v['name_shop'] || '—';
+  const asesor = (v['superadmin'] || '—').split(' ')[0];
+  const isLight = v['is_light'] == '1' || v['is_light'] === true;
+  const upsales = parseInt(v['cantidad_upsales']) || 0;
+  const isBundle = v['bundle'] == '1' || v['bundle'] === 'TRUE';
+  const dias = parseFloat(v['dias habiles desde recepcion']) || 0;
+  const price = parseFloat(v['total_pending_price']) || 0;
+  const id = v['appointment_id'];
+
+  const ttData = encodeURIComponent(JSON.stringify({
+    taller, model, plate, fleet: v['fleet']||'—', asesor: v['superadmin']||'—',
+    dias: dias.toFixed(1), price: price>0?'$'+price.toLocaleString('es-MX',{maximumFractionDigits:0}):'—',
+    alert, msg: v._alertMsg
+  }));
+
+  let timeChip = '';
+  if (dias > 0) {
+    const chipClass = alert === 'lagging' ? 'red' : alert === 'leading' ? 'blu' : 'time';
+    timeChip = `<span class="card-chip ${chipClass}">${dias.toFixed(1)}d</span>`;
+  }
+
+  const priceChip = price > 0 ? `<span class="card-chip price">$${(price/1000).toFixed(0)}k</span>` : '';
+  const badgeLight = isLight ? '<span class="badge-light">L</span>' : '';
+  const badgeUpsale = upsales > 1 ? '<span class="badge-upsale">⚠ upsale</span>' : '';
+  const badgeBundle = isBundle ? '<span class="badge-bundle">bundle</span>' : '';
+
+  const msgHtml = v._alertMsg ? `<div class="card-msg ${alert === 'leading' ? 'blu' : ''}">${v._alertMsg}</div>` : '';
+
+  return `<div class="card ${alert}" 
+    onclick="openModal('${id}')" 
+    onmouseenter="showTooltip(event,'${ttData}')" 
+    onmouseleave="hideTooltip()">
+    <div class="card-top">
+      <div class="card-alert ${alert === 'lagging' ? 'red' : alert === 'leading' ? 'blu' : 'ok'}"></div>
+      <div class="card-plate">${plate}</div>
+      <div class="card-badges">${badgeLight}${badgeBundle}</div>
+    </div>
+    <div class="card-model">${model} · ${asesor}</div>
+    <div class="card-taller">${taller}</div>
+    <div class="card-meta">${timeChip}${priceChip}${badgeUpsale}</div>
+    ${msgHtml}
+  </div>`;
+}
+
+// ─── ASESORES ─────────────────────────────────────────────────────────────────
+function renderAsesores() {
+  const byAsesor = {};
+  filteredVehicles.forEach(v => {
+    const a = v['superadmin'] || 'Sin asignar';
+    if (!byAsesor[a]) byAsesor[a] = [];
+    byAsesor[a].push(v);
+  });
+
+  const phaseLabel = { diagnostico:'Diagnóstico', cotizacion:'Cotización', aprobacion:'Aprobación', ejecucion:'Ejecución', entrega:'Entrega' };
+  const html = Object.entries(byAsesor).sort((a,b) => b[1].length - a[1].length).map(([name, vehicles]) => {
+    const lag = vehicles.filter(v => v._alert === 'lagging').length;
+    const lead = vehicles.filter(v => v._alert === 'leading').length;
+    const ok = vehicles.filter(v => v._alert === 'ok').length;
+    const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2);
+    const vehicleList = vehicles.slice(0,6).map(v =>
+      `<div class="asesor-vehicle" onclick="openModal('${v['appointment_id']}')">
+        <div class="dot ${v._alert}"></div>
+        <div class="plate">${v['vehicle_plates'] || v['appointment_id']}</div>
+        <div class="phase">${phaseLabel[v._phase]||v._phase}</div>
+      </div>`).join('');
+    const more = vehicles.length > 6 ? `<div style="font-size:.65rem;color:var(--mu);text-align:center;padding:.3rem">+${vehicles.length-6} más</div>` : '';
+
+    return `<div class="asesor-card">
+      <div class="asesor-head">
+        <div class="asesor-av">${initials}</div>
+        <div><div class="asesor-name">${name}</div><div class="asesor-total">${vehicles.length} unidades</div></div>
+      </div>
+      <div class="asesor-stats">
+        <div class="asesor-stat"><div class="n red">${lag}</div><div class="l">Lagging</div></div>
+        <div class="asesor-stat"><div class="n blu">${lead}</div><div class="l">Leading</div></div>
+        <div class="asesor-stat"><div class="n grn">${ok}</div><div class="l">Ok</div></div>
+      </div>
+      <div class="asesor-list">${vehicleList}${more}</div>
+      <button class="reassign-btn" onclick="openReassignModal('${name}')">↔ Reasignar vehículos</button>
+    </div>`;
+  }).join('');
+  document.getElementById('asesores-grid').innerHTML = html || '<div style="color:var(--mu);font-size:.8rem">Sin datos</div>';
+}
+
+// ─── TOOLTIP ──────────────────────────────────────────────────────────────────
+function showTooltip(e, dataStr) {
+  const d = JSON.parse(decodeURIComponent(dataStr));
+  const tt = document.getElementById('tooltip');
+  const alertRow = d.msg ? `<div class="tt-alert ${d.alert === 'leading' ? 'blu' : 'red'}">${d.msg}</div>` : '';
+  tt.innerHTML = `
+    <div class="tt-row"><span class="tt-label">Taller</span><span class="tt-val">${d.taller}</span></div>
+    <div class="tt-row"><span class="tt-label">Modelo</span><span class="tt-val">${d.model}</span></div>
+    <div class="tt-row"><span class="tt-label">Placa</span><span class="tt-val">${d.plate}</span></div>
+    <div class="tt-row"><span class="tt-label">Flota</span><span class="tt-val">${d.fleet}</span></div>
+    <div class="tt-row"><span class="tt-label">Asesor</span><span class="tt-val">${d.asesor}</span></div>
+    <div class="tt-row"><span class="tt-label">Días en taller</span><span class="tt-val">${d.dias}d</span></div>
+    ${d.price !== '—' ? `<div class="tt-row"><span class="tt-label">Valor pte.</span><span class="tt-val">${d.price}</span></div>` : ''}
+    ${alertRow}`;
+  tt.classList.add('show');
+  positionTooltip(e);
+}
+
+function positionTooltip(e) {
+  const tt = document.getElementById('tooltip');
+  const x = e.clientX + 14, y = e.clientY + 14;
+  tt.style.left = Math.min(x, window.innerWidth - 280) + 'px';
+  tt.style.top = Math.min(y, window.innerHeight - 200) + 'px';
+}
+
+document.addEventListener('mousemove', e => {
+  const tt = document.getElementById('tooltip');
+  if (tt.classList.contains('show')) positionTooltip(e);
+});
+
+function hideTooltip() { document.getElementById('tooltip').classList.remove('show'); }
+
+// ─── MODAL ────────────────────────────────────────────────────────────────────
+function openModal(apptId) {
+  const v = allVehicles.find(v => String(v['appointment_id']) === String(apptId));
+  if (!v) return;
+  currentModal = v;
+  const alert = v._alert;
+  const plate = v['vehicle_plates'] || apptId;
+  const taller = v['name_shop'] || '—';
+  const modelo = v['modelo'] || '—';
+  const asesor = v['superadmin'] || '—';
+  const fleet = v['fleet'] || '—';
+  const servicio = v['SERVICIO'] || '—';
+  const dias = parseFloat(v['dias habiles desde recepcion']) || 0;
+  const price = parseFloat(v['total_pending_price']) || 0;
+  const isLight = v['is_light'] == '1';
+  const upsales = parseInt(v['cantidad_upsales']) || 0;
+
+  document.getElementById('m-plate').textContent = plate + (isLight ? ' 💡' : '');
+  document.getElementById('m-sub').textContent = `${modelo} · ${taller} · ${fleet}`;
+  const dot = document.getElementById('m-dot');
+  dot.className = 'modal-alert-dot ' + (alert === 'lagging' ? 'red' : alert === 'leading' ? 'blu' : 'ok');
+
+  // Alert box
+  let alertHtml = '';
+  if (alert !== 'ok' && v._alertMsg) {
+    alertHtml = `<div class="modal-alert-box ${alert === 'leading' ? 'blu' : 'red'}">
+      <div class="modal-alert-title ${alert === 'leading' ? 'blu' : 'red'}">${alert === 'leading' ? '↗ LEADING — Intervenir ahora' : '⚠ LAGGING — Fallo confirmado'}</div>
+      <div class="modal-alert-msg">${v._alertMsg}</div>
+    </div>`;
+  }
+  document.getElementById('m-alert-box').innerHTML = alertHtml;
+
+  // Grid
+  const phaseLabel = { diagnostico:'Diagnóstico', cotizacion:'Cotización', aprobacion:'Aprobación', ejecucion:'Ejecución', entrega:'Entrega' };
+  const reception = v['reception_time'] ? new Date(v['reception_time']).toLocaleDateString('es-MX') : '—';
+  const slaEntrega = v['sla_entrega'] ? new Date(v['sla_entrega']).toLocaleDateString('es-MX') : '—';
+  const converted = v['quote_max_converted_at'] ? new Date(v['quote_max_converted_at']).toLocaleDateString('es-MX') : '—';
+
+  document.getElementById('m-grid').innerHTML = [
+    ['Fase', phaseLabel[v._phase] || v._phase],
+    ['Asesor', asesor],
+    ['Servicio', servicio],
+    ['Flota', fleet],
+    ['Recepción', reception],
+    ['Días en taller', dias.toFixed(1) + 'd'],
+    ['SLA Entrega', slaEntrega],
+    ['Última cotiz.', converted],
+    ['Valor pendiente', price > 0 ? '$' + price.toLocaleString('es-MX', {maximumFractionDigits:0}) : '—'],
+    ['Upsales', upsales > 0 ? (upsales > 1 ? '⚠ '+upsales+' (posible mal diagnóstico)' : upsales) : '0'],
+  ].map(([l,v]) => `<div class="modal-field"><div class="modal-field-label">${l}</div><div class="modal-field-val">${v}</div></div>`).join('');
+
+  // Notes
+  renderNotes(apptId);
+
+  // Task suggestions
+  const suggestions = getTaskSuggestions(v);
+  document.getElementById('m-task-suggestions').innerHTML = suggestions.map(s =>
+    `<button class="task-gen-btn" onclick="createTaskFromSuggestion('${apptId}','${s.title.replace(/'/g,"\\'")}','${s.assignee.replace(/'/g,"\\'")}','${s.priority}')">
+      <span>+</span> ${s.title} → <strong>${s.assignee || 'Sin asignar'}</strong>
+    </button>`
+  ).join('');
+
+  // Entrega export
+  if (v._phase === 'entrega' && v._alert === 'ok') {
+    document.getElementById('m-task-suggestions').innerHTML += `<button class="export-btn" onclick="exportEntrega('${apptId}')">⬇ Exportar datos de entrega (Excel)</button>`;
+  }
+
+  document.getElementById('modal').classList.add('show');
+}
+
+function closeModal() { document.getElementById('modal').classList.remove('show'); currentModal = null; }
+document.getElementById('modal').addEventListener('click', e => { if(e.target === document.getElementById('modal')) closeModal(); });
+
+function getTaskSuggestions(v) {
+  const tasks = [];
+  const asesor = v['superadmin'] || '';
+  if (v._alert === 'lagging') {
+    if (v._phase === 'diagnostico') tasks.push({ title: 'Presionar taller para iniciar diagnóstico', assignee: asesor, priority: 'alta' });
+    if (v._phase === 'cotizacion') tasks.push({ title: `Urgente: generar cotización (${v['vehicle_plates']})`, assignee: asesor, priority: 'alta' });
+    if (v._phase === 'aprobacion') tasks.push({ title: `Seguimiento al cliente para aprobación (${v['vehicle_plates']})`, assignee: asesor, priority: 'alta' });
+    if (v._phase === 'ejecucion') tasks.push({ title: `SLA vencido: revisar avance de trabajos (${v['vehicle_plates']})`, assignee: asesor, priority: 'alta' });
+    if (v._phase === 'entrega') tasks.push({ title: `Confirmar recolección con cliente (${v['vehicle_plates']})`, assignee: asesor, priority: 'media' });
+  } else if (v._alert === 'leading') {
+    if (v._phase === 'cotizacion') tasks.push({ title: `Priorizar cotización antes de vencer SLA (${v['vehicle_plates']})`, assignee: asesor, priority: 'media' });
+    if (v._phase === 'aprobacion') tasks.push({ title: `Dar seguimiento a aprobación pendiente (${v['vehicle_plates']})`, assignee: asesor, priority: 'media' });
+    if (v._phase === 'ejecucion') tasks.push({ title: `Verificar avance de trabajos (${v['vehicle_plates']})`, assignee: asesor, priority: 'media' });
+  }
+  return tasks;
+}
+
+function createTaskFromSuggestion(apptId, title, assignee, priority) {
+  createTaskObj({ title, assignee, priority, plate: apptId });
+  showToast('Tarea creada');
+}
+
+// ─── NOTES ────────────────────────────────────────────────────────────────────
+function getNotes(apptId) {
+  const key = 'notes_' + apptId;
+  return JSON.parse(localStorage.getItem(key) || '[]');
+}
+
+function saveNote(apptId, text) {
+  const key = 'notes_' + apptId;
+  const notes = getNotes(apptId);
+  notes.push({ text, user: CFG.user, ts: new Date().toISOString() });
+  localStorage.setItem(key, JSON.stringify(notes));
+}
+
+function renderNotes(apptId) {
+  const notes = getNotes(apptId);
+  const el = document.getElementById('m-notes');
+  if (notes.length === 0) { el.innerHTML = '<div style="color:var(--mu);font-size:.72rem;padding:.3rem 0">Sin notas aún.</div>'; return; }
+  el.innerHTML = notes.map(n => `
+    <div class="note-item">
+      <div class="note-meta">${n.user} · ${new Date(n.ts).toLocaleString('es-MX')}</div>
+      <div class="note-text">${n.text}</div>
+    </div>`).join('');
+}
+
+function addNote() {
+  if (!currentModal) return;
+  const input = document.getElementById('m-note-input');
+  const text = input.value.trim();
+  if (!text) return;
+  saveNote(currentModal['appointment_id'], text);
+  input.value = '';
+  renderNotes(currentModal['appointment_id']);
+  showToast('Nota guardada');
+}
+
+// ─── TASKS ────────────────────────────────────────────────────────────────────
+function getTasks() { return JSON.parse(localStorage.getItem('torre_tasks') || '[]'); }
+function saveTasks(tasks) {
+  localStorage.setItem('torre_tasks', JSON.stringify(tasks));
+  renderTasks();
+  updateTasksBadge();
+}
+
+function createTaskObj({ title, assignee, priority, plate }) {
+  const tasks = getTasks();
+  tasks.push({ id: Date.now(), title, assignee: assignee||'', priority: priority||'media', plate: plate||'', done: false, ts: new Date().toISOString() });
+  saveTasks(tasks);
+}
+
+function openNewTaskModal() {
+  document.getElementById('ntm-title').value = '';
+  document.getElementById('ntm-plate').value = '';
+  document.getElementById('ntm-priority').value = 'media';
+  document.getElementById('new-task-modal').classList.add('show');
+}
+
+function closeNewTaskModal() { document.getElementById('new-task-modal').classList.remove('show'); }
+
+function createTask() {
+  const title = document.getElementById('ntm-title').value.trim();
+  if (!title) return;
+  createTaskObj({
+    title,
+    assignee: document.getElementById('ntm-assignee').value,
+    priority: document.getElementById('ntm-priority').value,
+    plate: document.getElementById('ntm-plate').value.trim()
+  });
+  closeNewTaskModal();
+  showToast('Tarea creada');
+}
+
+function filterTasks(filter, btn) {
+  currentTaskFilter = filter;
+  document.querySelectorAll('.tasks-filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTasks();
+}
+
+function renderTasks() {
+  let tasks = getTasks();
+  if (currentTaskFilter === 'pending') tasks = tasks.filter(t => !t.done);
+  if (currentTaskFilter === 'done') tasks = tasks.filter(t => t.done);
+  tasks = tasks.sort((a, b) => {
+    const p = { alta: 0, media: 1, baja: 2 };
+    return (p[a.priority] || 1) - (p[b.priority] || 1);
+  });
+
+  if (tasks.length === 0) {
+    document.getElementById('tasks-list').innerHTML = '<div class="no-tasks">No hay tareas en esta vista.</div>';
+    return;
+  }
+
+  document.getElementById('tasks-list').innerHTML = tasks.map(t => `
+    <div class="task-item ${t.done ? 'done' : ''}">
+      <div class="task-check ${t.done ? 'done' : ''}" onclick="toggleTask(${t.id})">${t.done ? '✓' : ''}</div>
+      <div class="task-content">
+        <div class="task-title">${t.title}</div>
+        <div class="task-meta">
+          ${t.assignee ? `<span class="assignee">@${t.assignee.split(' ')[0]}</span> · ` : ''}
+          ${t.plate ? `<span class="plate-ref">${t.plate}</span> · ` : ''}
+          <span>${new Date(t.ts).toLocaleDateString('es-MX')}</span>
+        </div>
+      </div>
+      <span class="task-priority ${t.priority}">${t.priority}</span>
+      <button class="task-delete" onclick="deleteTask(${t.id})">✕</button>
+    </div>`).join('');
+}
+
+function toggleTask(id) {
+  const tasks = getTasks().map(t => t.id === id ? {...t, done: !t.done} : t);
+  saveTasks(tasks);
+}
+
+function deleteTask(id) {
+  saveTasks(getTasks().filter(t => t.id !== id));
+}
+
+function updateTasksBadge() {
+  const pending = getTasks().filter(t => !t.done).length;
+  const badge = document.getElementById('badge-tasks');
+  if (pending > 0) { badge.textContent = pending; badge.style.display = ''; }
+  else badge.style.display = 'none';
+}
+
+// ─── REASSIGN ─────────────────────────────────────────────────────────────────
+function openReassignModal(fromAsesor) {
+  reassignTarget = fromAsesor;
+  document.getElementById('rm-sub').textContent = `Reasignar vehículos de ${fromAsesor}`;
+  const asesores = [...new Set(allVehicles.map(v => v['superadmin']).filter(Boolean))].sort();
+  document.getElementById('rm-list').innerHTML = asesores
+    .filter(a => a !== fromAsesor)
+    .map(a => {
+      const initials = a.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+      return `<div class="rm-option" onclick="doReassign('${a}')">
+        <div class="rm-av">${initials}</div>${a}
+      </div>`;
+    }).join('');
+  document.getElementById('reassign-modal').classList.add('show');
+}
+
+function doReassign(toAsesor) {
+  // Only visual reassign (no write-back to sheet)
+  allVehicles.forEach(v => { if (v['superadmin'] === reassignTarget) v['superadmin'] = toAsesor; });
+  filteredVehicles.forEach(v => { if (v['superadmin'] === reassignTarget) v['superadmin'] = toAsesor; });
+  closeReassignModal();
+  renderTorre();
+  renderAsesores();
+  updateFilters();
+  showToast(`Reasignado a ${toAsesor} (local)`);
+}
+
+function closeReassignModal() { document.getElementById('reassign-modal').classList.remove('show'); }
+
+// ─── EXPORT ENTREGA ───────────────────────────────────────────────────────────
+function exportEntrega(apptId) {
+  const v = allVehicles.find(v => String(v['appointment_id']) === String(apptId));
+  if (!v) return;
+  const data = [
+    ['Campo', 'Valor'],
+    ['Appointment ID', v['appointment_id']],
+    ['Placa', v['vehicle_plates']],
+    ['Modelo', v['modelo']],
+    ['Taller', v['name_shop']],
+    ['Flota', v['fleet']],
+    ['Asesor', v['superadmin']],
+    ['Servicio', v['SERVICIO']],
+    ['Recepción', v['reception_time']],
+    ['SLA Entrega', v['sla_entrega']],
+    ['Días en taller', v['dias habiles desde recepcion']],
+    ['Valor total', v['total_pending_price']],
+    ['Estado SLA', v['Estado SLA']],
+  ];
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  XLSX.utils.book_append_sheet(wb, ws, 'Entrega');
+  XLSX.writeFile(wb, `Entrega_${v['vehicle_plates'] || apptId}_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+// ─── VIEW SWITCHING ───────────────────────────────────────────────────────────
+function showView(view) {
+  ['torre','asesores','tareas'].forEach(v => {
+    document.getElementById('view-' + v).style.display = v === view ? '' : 'none';
+    document.getElementById('nav-' + v).classList.toggle('active', v === view);
+  });
+  if (view === 'torre') document.getElementById('view-torre').style.display = 'flex';
+  if (view === 'tareas') renderTasks();
+  if (view === 'asesores') renderAsesores();
+}
+
+// ─── TIMER ────────────────────────────────────────────────────────────────────
+function startTimer() {
+  timerInterval = setInterval(() => {
+    nextRefresh--;
+    if (nextRefresh <= 0) { loadData(); nextRefresh = 300; }
+    const m = Math.floor(nextRefresh / 60), s = nextRefresh % 60;
+    document.getElementById('timer-txt').textContent = `↻ ${m}:${s.toString().padStart(2,'0')}`;
+  }, 1000);
+}
+
+// ─── TOAST ────────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.style.cssText = `position:fixed;bottom:1rem;right:1rem;background:var(--s3);border:1px solid var(--b2);border-radius:9px;padding:.5rem 1rem;font-size:.75rem;z-index:9999;animation:slideIn .2s ease;color:var(--grn);`;
+  t.textContent = '✓ ' + msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem('torre_cfg');
+  if (saved) {
+    try {
+      CFG = JSON.parse(saved);
+      if (CFG.user && CFG.key) { initApp(); return; }
+    } catch(e) {}
+  }
+  document.getElementById('app').style.display = 'none';
+});
+
+// Close modals on escape
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    closeModal();
+    closeNewTaskModal();
+    closeReassignModal();
+  }
+});
+
+// Initial view setup
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('view-asesores').style.display = 'none';
+  document.getElementById('view-tareas').style.display = 'none';
+  document.getElementById('view-torre').style.display = 'flex';
+  updateTasksBadge();
+});
+</script>
+</body>
+</html>
