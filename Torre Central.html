@@ -1,0 +1,1709 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Torre Central — Autolab</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@400;600;700;800&display=swap');
+:root{--bg:#07090f;--s:#0d1017;--s2:#111520;--s3:#161b28;--b:#1e2535;--b2:#28304a;--tx:#dde4f0;--mu:#4a5470;--mu2:#7a859e;--ac:#00c8ff;--red:#ff3d5a;--redbg:rgba(255,61,90,.08);--redbr:rgba(255,61,90,.25);--blu:#2979ff;--blubg:rgba(41,121,255,.08);--blubr:rgba(41,121,255,.25);--grn:#00e59b;--grnbg:rgba(0,229,155,.07);--yel:#ffb627;--yelbg:rgba(255,182,39,.08);--ora:#ff6b35;--orabg:rgba(255,107,53,.08);--mono:'JetBrains Mono',monospace;--sans:'Syne',sans-serif;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--sans);background:var(--bg);color:var(--tx);min-height:100vh;overflow:hidden;}
+::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes slideIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes redPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,61,90,.3)}50%{box-shadow:0 0 0 3px rgba(255,61,90,.08)}}
+
+/* SETUP */
+#setup{position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;align-items:center;justify-content:center;overflow-y:auto;padding:1rem;}
+#setup.hide{display:none}
+.setup-box{background:var(--s);border:1px solid var(--b2);border-radius:16px;padding:2rem;width:520px;max-width:95vw;}
+.setup-logo{font-size:1rem;font-weight:800;color:var(--ac);letter-spacing:2px;text-transform:uppercase;margin-bottom:1.5rem;display:flex;align-items:center;gap:.5rem;}
+.setup-logo .dot{width:8px;height:8px;background:var(--ac);border-radius:50%;}
+.setup-title{font-size:1.3rem;font-weight:800;margin-bottom:.3rem;}
+.setup-sub{font-size:.8rem;color:var(--mu2);line-height:1.6;margin-bottom:1.5rem;}
+.setup-label{font-size:.65rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--mu);margin-bottom:.3rem;display:block;}
+.setup-input{width:100%;background:var(--s2);border:1px solid var(--b);border-radius:8px;padding:.6rem .9rem;font-size:.82rem;color:var(--tx);font-family:var(--mono);outline:none;transition:border-color .15s;margin-bottom:.9rem;}
+.setup-input:focus{border-color:var(--ac);}
+.setup-input::placeholder{color:var(--mu);}
+.setup-btn{width:100%;background:var(--ac);color:#000;padding:.7rem;border-radius:9px;font-size:.9rem;font-weight:800;border:none;cursor:pointer;font-family:var(--sans);letter-spacing:.5px;transition:all .15s;}
+.setup-btn:hover{background:#00aadd;}
+.setup-note{font-size:.72rem;color:var(--mu);margin-bottom:.8rem;line-height:1.6;}
+.setup-note a{color:var(--ac);text-decoration:none;}
+.setup-err{color:var(--red);font-size:.74rem;margin-bottom:.4rem;display:none;}
+
+/* LAYOUT */
+#app{display:none;height:100vh;grid-template-rows:48px 1fr;grid-template-columns:200px 1fr;}
+#app.show{display:grid;}
+
+/* TOPBAR */
+#topbar{grid-column:1/-1;display:flex;align-items:center;gap:.6rem;padding:0 .8rem;background:var(--s);border-bottom:1px solid var(--b);z-index:10;overflow-x:auto;}
+.top-logo{font-size:.8rem;font-weight:800;color:var(--ac);letter-spacing:2px;text-transform:uppercase;flex-shrink:0;white-space:nowrap;}
+.top-logo span{color:var(--mu2);}
+.top-sep{width:1px;height:20px;background:var(--b2);flex-shrink:0;}
+.top-stat{display:flex;align-items:center;gap:.3rem;font-size:.68rem;font-family:var(--mono);flex-shrink:0;}
+.top-stat .n{font-weight:700;font-size:.82rem;}
+.top-stat.red .n{color:var(--red);}
+.top-stat.blu .n{color:var(--blu);}
+.top-stat.grn .n{color:var(--grn);}
+.top-stat .lbl{color:var(--mu2);}
+.filter-bar{display:flex;align-items:center;gap:.4rem;flex:1;overflow-x:auto;padding:.2rem 0;}
+.filter-select{background:var(--s2);border:1px solid var(--b);border-radius:6px;padding:.2rem .5rem;font-size:.66rem;color:var(--tx);font-family:var(--sans);outline:none;cursor:pointer;flex-shrink:0;}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:.6rem;flex-shrink:0;}
+.refresh-btn{background:none;border:1px solid var(--b2);border-radius:6px;padding:.22rem .55rem;font-size:.66rem;color:var(--mu2);cursor:pointer;font-family:var(--mono);transition:all .12s;display:flex;align-items:center;gap:.3rem;}
+.refresh-btn:hover{border-color:var(--ac);color:var(--ac);}
+.refresh-btn.spinning .ico{animation:spin .8s linear infinite;display:inline-block;}
+.timer{font-size:.62rem;font-family:var(--mono);color:var(--mu);}
+.top-user{font-size:.7rem;color:var(--mu2);display:flex;align-items:center;gap:.3rem;}
+.top-user .av{width:22px;height:22px;background:var(--ac);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;color:#000;}
+
+/* MULTI-SELECT DROPDOWN (flota / taller / servicio) */
+.ms-wrap{position:relative;flex-shrink:0;}
+.ms-btn{background:var(--s2);border:1px solid var(--b);border-radius:6px;padding:.22rem .6rem;font-size:.66rem;color:var(--tx);font-family:var(--sans);cursor:pointer;display:flex;align-items:center;gap:.3rem;white-space:nowrap;transition:border-color .12s;}
+.ms-btn:hover{border-color:var(--ac);}
+.ms-btn.active-fleet{border-color:var(--ac);color:var(--ac);}
+.ms-btn.active-taller{border-color:var(--yel);color:var(--yel);}
+.ms-btn.active-excl{border-color:var(--red);color:var(--red);}
+.ms-btn.active-servicio{border-color:var(--grn);color:var(--grn);}
+.ms-btn.active-fase{border-color:var(--ora);color:var(--ora);}
+.ms-dropdown{position:absolute;top:calc(100% + 4px);left:0;background:var(--s2);border:1px solid var(--b2);border-radius:10px;padding:.5rem;min-width:200px;max-width:280px;z-index:300;box-shadow:0 8px 32px rgba(0,0,0,.5);display:none;}
+.ms-dropdown.open{display:block;}
+.ms-dd-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem;padding-bottom:.3rem;border-bottom:1px solid var(--b);}
+.ms-dd-title{font-size:.62rem;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--mu);}
+.ms-clear{background:none;border:none;font-size:.65rem;color:var(--ac);cursor:pointer;font-family:var(--sans);}
+.ms-list{display:flex;flex-direction:column;gap:.12rem;max-height:200px;overflow-y:auto;}
+.ms-opt{display:flex;align-items:center;gap:.4rem;padding:.28rem .4rem;border-radius:5px;cursor:pointer;transition:background .1s;}
+.ms-opt:hover{background:var(--s3);}
+.ms-opt input[type=checkbox]{accent-color:var(--ac);width:13px;height:13px;cursor:pointer;flex-shrink:0;}
+.ms-opt label{font-size:.7rem;cursor:pointer;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ms-mode-row{display:flex;align-items:center;gap:.4rem;padding:.28rem .4rem;border-bottom:1px solid var(--b);margin-bottom:.3rem;}
+.ms-mode-row input{accent-color:var(--red);width:13px;height:13px;cursor:pointer;}
+.ms-mode-row label{font-size:.68rem;color:var(--mu2);cursor:pointer;}
+
+/* SIDEBAR */
+#sidebar{background:var(--s);border-right:1px solid var(--b);display:flex;flex-direction:column;overflow:hidden;}
+.nav-section{padding:.55rem .8rem .15rem;font-size:.56rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--mu);}
+.nav-item{display:flex;align-items:center;gap:.5rem;padding:.45rem .9rem;font-size:.74rem;cursor:pointer;border-radius:6px;margin:.08rem .4rem;transition:all .12s;color:var(--mu2);font-weight:600;}
+.nav-item:hover{background:var(--s2);color:var(--tx);}
+.nav-item.active{background:rgba(0,200,255,.08);color:var(--ac);}
+.nav-item .ico{font-size:.9rem;flex-shrink:0;}
+.nav-item .nbadge{margin-left:auto;background:var(--red);color:#fff;font-size:.56rem;font-weight:800;padding:.04rem .32rem;border-radius:8px;font-family:var(--mono);}
+.nav-item .nbadge.blu{background:var(--blu);}
+.nav-item .nbadge.yel{background:var(--yel);color:#000;}
+.nav-bottom{margin-top:auto;padding:.7rem;border-top:1px solid var(--b);}
+.last-update{font-size:.6rem;color:var(--mu);font-family:var(--mono);}
+
+/* MAIN */
+#main{overflow:hidden;display:flex;flex-direction:column;}
+
+/* TORRE */
+#view-torre{display:flex;flex-direction:column;height:100%;overflow:hidden;}
+.torre-header{padding:.5rem .8rem;display:flex;align-items:center;gap:.6rem;border-bottom:1px solid var(--b);flex-shrink:0;}
+.torre-title{font-size:.76rem;font-weight:800;letter-spacing:1px;text-transform:uppercase;}
+.legend{display:flex;align-items:center;gap:.7rem;margin-left:auto;}
+.leg{display:flex;align-items:center;gap:.25rem;font-size:.62rem;color:var(--mu2);}
+.leg-dot{width:7px;height:7px;border-radius:50%;}
+.leg-dot.red{background:var(--red);}
+.leg-dot.blu{background:var(--blu);}
+.leg-dot.ok{background:var(--mu);}
+.phases-grid{display:grid;gap:1px;flex:1;overflow:hidden;background:var(--b);}
+.phase-col{background:var(--bg);display:flex;flex-direction:column;overflow:hidden;}
+.phase-head{padding:.5rem .7rem;border-bottom:1px solid var(--b);flex-shrink:0;background:var(--s);}
+.phase-name{font-size:.65rem;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--mu2);}
+.phase-count{font-size:.58rem;color:var(--mu);font-family:var(--mono);margin-top:.08rem;}
+.phase-count .r{color:var(--red);font-weight:700;}
+.phase-count .b{color:var(--blu);font-weight:700;}
+.phase-cards{flex:1;overflow-y:auto;padding:.4rem .35rem;display:flex;flex-direction:column;gap:.35rem;}
+
+/* CARDS */
+.card{border-radius:8px;padding:.45rem .55rem;cursor:pointer;transition:all .12s;position:relative;border:1px solid transparent;animation:slideIn .2s ease;}
+.card:hover{transform:translateY(-1px);filter:brightness(1.05);}
+.card.lagging{background:var(--redbg);border-color:var(--redbr);animation:redPulse 2.5s infinite;}
+.card.leading{background:var(--blubg);border-color:var(--blubr);}
+.card.ok{background:var(--s2);border-color:var(--b);}
+.card-top{display:flex;align-items:center;gap:.28rem;margin-bottom:.2rem;}
+.card-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.card-dot.red{background:var(--red);box-shadow:0 0 4px var(--red);}
+.card-dot.blu{background:var(--blu);box-shadow:0 0 4px var(--blu);}
+.card-dot.ok{background:var(--mu);}
+.card-plate{font-size:.72rem;font-weight:700;font-family:var(--mono);letter-spacing:.5px;flex:1;}
+.card-badges{display:flex;gap:.18rem;flex-wrap:wrap;}
+.badge-light{font-size:.52rem;background:rgba(0,200,255,.12);color:var(--ac);border:1px solid rgba(0,200,255,.25);border-radius:4px;padding:.04rem .25rem;font-weight:700;}
+.badge-upsale{font-size:.52rem;background:var(--yelbg);color:var(--yel);border:1px solid rgba(255,182,39,.25);border-radius:4px;padding:.04rem .25rem;font-weight:700;}
+.badge-partes{font-size:.52rem;background:var(--orabg);color:var(--ora);border:1px solid rgba(255,107,53,.25);border-radius:4px;padding:.04rem .25rem;font-weight:700;}
+.card-model{font-size:.65rem;color:var(--mu2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.card-taller{font-size:.6rem;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.06rem;}
+.card-chips{display:flex;gap:.3rem;margin-top:.25rem;flex-wrap:wrap;align-items:center;}
+.chip{font-size:.57rem;font-family:var(--mono);padding:.07rem .28rem;border-radius:4px;background:var(--s3);}
+.chip.time{color:var(--yel);}
+.chip.red{color:var(--red);background:var(--redbg);}
+.chip.grn{color:var(--grn);}
+.chip.blu{color:var(--blu);}
+.chip.price{color:var(--ac);}
+.chip.ora{color:var(--ora);background:var(--orabg);}
+.chip.mu{color:var(--mu2);}
+.card-sla{font-size:.58rem;font-family:var(--mono);padding:.08rem .28rem;border-radius:4px;margin-top:.18rem;}
+.card-sla.expired{background:var(--redbg);color:var(--red);border:1px solid var(--redbr);}
+.card-sla.urgent{background:var(--yelbg);color:var(--yel);}
+.card-sla.safe{background:var(--grnbg);color:var(--grn);}
+.card-msg{font-size:.58rem;color:var(--red);margin-top:.18rem;font-weight:600;}
+.card-msg.blu{color:var(--blu);}
+
+/* TOOLTIP */
+#tooltip{position:fixed;background:var(--s3);border:1px solid var(--b2);border-radius:10px;padding:.65rem .9rem;font-size:.7rem;pointer-events:none;z-index:500;opacity:0;transition:opacity .12s;min-width:190px;max-width:250px;box-shadow:0 8px 32px rgba(0,0,0,.4);}
+#tooltip.show{opacity:1;}
+.tt-row{display:flex;justify-content:space-between;gap:.6rem;margin-bottom:.18rem;}
+.tt-label{color:var(--mu2);}
+.tt-val{font-weight:600;font-family:var(--mono);font-size:.66rem;text-align:right;}
+
+/* MODAL APPOINTMENT */
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:400;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+#modal.show{display:flex;}
+.modal-box{background:var(--s);border:1px solid var(--b2);border-radius:16px;width:600px;max-width:95vw;max-height:88vh;overflow-y:auto;animation:slideIn .2s ease;}
+.modal-head{padding:1.1rem 1.3rem .7rem;border-bottom:1px solid var(--b);display:flex;align-items:flex-start;gap:.7rem;position:sticky;top:0;background:var(--s);z-index:1;}
+.modal-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:.22rem;}
+.modal-dot.red{background:var(--red);box-shadow:0 0 6px var(--red);}
+.modal-dot.blu{background:var(--blu);box-shadow:0 0 6px var(--blu);}
+.modal-dot.ok{background:var(--mu);}
+.modal-plate{font-size:1.3rem;font-weight:800;font-family:var(--mono);}
+.modal-sub{font-size:.75rem;color:var(--mu2);margin-top:.12rem;}
+.modal-close{margin-left:auto;background:none;border:none;color:var(--mu2);font-size:1.1rem;cursor:pointer;line-height:1;}
+.modal-close:hover{color:var(--tx);}
+.modal-body{padding:1.1rem 1.3rem;}
+.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.8rem;}
+.modal-field{background:var(--s2);border-radius:7px;padding:.45rem .65rem;}
+.mf-label{font-size:.58rem;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--mu);margin-bottom:.12rem;}
+.mf-val{font-size:.78rem;font-family:var(--mono);}
+.mf-val.red{color:var(--red);}
+.mf-val.grn{color:var(--grn);}
+.modal-section{font-size:.63rem;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--mu);margin:.8rem 0 .4rem;}
+.modal-alert-box{border-radius:8px;padding:.55rem .8rem;margin-bottom:.6rem;border:1px solid;}
+.modal-alert-box.red{background:var(--redbg);border-color:var(--redbr);}
+.modal-alert-box.blu{background:var(--blubg);border-color:var(--blubr);}
+.modal-alert-title{font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:.12rem;}
+.modal-alert-title.red{color:var(--red);}
+.modal-alert-title.blu{color:var(--blu);}
+.modal-alert-msg{font-size:.72rem;color:var(--mu2);}
+.notes-area{background:var(--s2);border:1px solid var(--b);border-radius:8px;padding:.5rem .7rem;margin-bottom:.5rem;max-height:150px;overflow-y:auto;}
+.note-item{border-bottom:1px solid var(--b);padding:.35rem 0;font-size:.73rem;line-height:1.5;}
+.note-item:last-child{border-bottom:none;}
+.note-meta{font-size:.6rem;color:var(--mu);font-family:var(--mono);margin-bottom:.12rem;}
+.note-input{width:100%;background:var(--s3);border:1px solid var(--b);border-radius:7px;padding:.45rem .65rem;font-size:.78rem;color:var(--tx);font-family:var(--sans);outline:none;resize:vertical;min-height:55px;transition:border-color .12s;}
+.note-input:focus{border-color:var(--ac);}
+.note-add-btn{margin-top:.35rem;background:var(--ac);color:#000;border:none;border-radius:6px;padding:.3rem .75rem;font-size:.72rem;font-weight:700;cursor:pointer;font-family:var(--sans);}
+.task-create-row{display:flex;gap:.4rem;margin-bottom:.4rem;}
+.task-create-row input{flex:1;background:var(--s3);border:1px solid var(--b);border-radius:7px;padding:.35rem .6rem;font-size:.76rem;color:var(--tx);font-family:var(--sans);outline:none;}
+.task-create-row input:focus{border-color:var(--ac);}
+.task-create-row select{background:var(--s3);border:1px solid var(--b);border-radius:7px;padding:.35rem .5rem;font-size:.72rem;color:var(--tx);font-family:var(--sans);outline:none;cursor:pointer;}
+.task-create-btn{background:var(--grn);color:#000;border:none;border-radius:7px;padding:.35rem .8rem;font-size:.72rem;font-weight:700;cursor:pointer;font-family:var(--sans);white-space:nowrap;}
+.task-suggestion-btn{width:100%;background:var(--s2);border:1px solid var(--b);border-radius:7px;padding:.42rem .65rem;font-size:.72rem;color:var(--mu2);cursor:pointer;font-family:var(--sans);text-align:left;transition:all .12s;margin-bottom:.25rem;}
+.task-suggestion-btn:hover{border-color:var(--ac);color:var(--tx);}
+.task-suggestion-btn span{color:var(--ac);margin-right:.25rem;}
+.export-btn{width:100%;background:rgba(0,229,155,.08);border:1px solid rgba(0,229,155,.2);border-radius:7px;padding:.38rem;font-size:.7rem;color:var(--grn);cursor:pointer;font-family:var(--sans);font-weight:700;transition:all .12s;margin-top:.3rem;}
+.export-btn:hover{background:rgba(0,229,155,.15);}
+
+/* GENERIC VIEW */
+.view-wrap{padding:1rem;overflow-y:auto;height:100%;display:none;}
+.view-wrap.show{display:block;}
+.view-title{font-size:.95rem;font-weight:800;margin-bottom:.15rem;}
+.view-sub{font-size:.73rem;color:var(--mu2);margin-bottom:1rem;}
+.view-controls{display:flex;gap:.5rem;margin-bottom:.8rem;align-items:center;flex-wrap:wrap;}
+.filter-btn{background:var(--s2);border:1px solid var(--b);border-radius:6px;padding:.28rem .65rem;font-size:.7rem;color:var(--mu2);cursor:pointer;font-family:var(--sans);transition:all .12s;}
+.filter-btn.active{background:rgba(0,200,255,.1);border-color:var(--ac);color:var(--ac);}
+.action-btn{background:var(--ac);color:#000;border:none;border-radius:6px;padding:.3rem .75rem;font-size:.72rem;font-weight:700;cursor:pointer;font-family:var(--sans);}
+.action-btn.red{background:var(--red);color:#fff;}
+.action-btn.grn{background:var(--grn);}
+.action-btn:disabled{opacity:.5;cursor:not-allowed;}
+
+/* ASESORES */
+.asesores-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:.7rem;}
+.asesor-card{background:var(--s);border:1px solid var(--b);border-radius:12px;padding:.9rem;animation:slideIn .2s ease;}
+.asesor-head{display:flex;align-items:center;gap:.55rem;margin-bottom:.7rem;}
+.asesor-av{width:32px;height:32px;border-radius:50%;background:var(--ac);display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;color:#000;flex-shrink:0;}
+.asesor-name{font-weight:700;font-size:.85rem;}
+.asesor-total{font-size:.65rem;color:var(--mu2);font-family:var(--mono);}
+.asesor-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:.35rem;margin-bottom:.6rem;}
+.asesor-stat{background:var(--s2);border-radius:6px;padding:.35rem;text-align:center;}
+.asesor-stat .n{font-size:1rem;font-weight:800;font-family:var(--mono);}
+.asesor-stat .n.red{color:var(--red);}
+.asesor-stat .n.blu{color:var(--blu);}
+.asesor-stat .n.grn{color:var(--grn);}
+.asesor-stat .l{font-size:.56rem;color:var(--mu);}
+.asesor-list{display:flex;flex-direction:column;gap:.25rem;}
+.asesor-veh{display:flex;align-items:center;gap:.35rem;background:var(--s2);border-radius:6px;padding:.3rem .45rem;font-size:.68rem;cursor:pointer;transition:background .12s;border:1px solid transparent;}
+.asesor-veh:hover{background:var(--s3);border-color:var(--b2);}
+.asesor-veh .dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+.asesor-veh .dot.red{background:var(--red);}
+.asesor-veh .dot.blu{background:var(--blu);}
+.asesor-veh .dot.ok{background:var(--mu);}
+.asesor-veh .plate{font-family:var(--mono);font-weight:700;flex:1;}
+.asesor-veh .phase{color:var(--mu2);font-size:.6rem;}
+.ver-todos-btn{width:100%;margin-top:.5rem;background:none;border:1px solid var(--b2);border-radius:6px;padding:.32rem;font-size:.68rem;color:var(--mu2);cursor:pointer;font-family:var(--sans);transition:all .12s;}
+.ver-todos-btn:hover{border-color:var(--ac);color:var(--ac);}
+.reassign-btn{width:100%;margin-top:.3rem;background:none;border:1px solid var(--b2);border-radius:6px;padding:.32rem;font-size:.68rem;color:var(--mu2);cursor:pointer;font-family:var(--sans);transition:all .12s;}
+.reassign-btn:hover{border-color:var(--yel);color:var(--yel);}
+
+/* VER TODOS MODAL */
+#vertodos-modal{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:450;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+#vertodos-modal.show{display:flex;}
+.vtm-box{background:var(--s);border:1px solid var(--b2);border-radius:16px;width:900px;max-width:95vw;max-height:88vh;overflow:hidden;display:flex;flex-direction:column;animation:slideIn .2s ease;}
+.vtm-head{padding:.9rem 1.2rem;border-bottom:1px solid var(--b);display:flex;align-items:center;gap:.6rem;flex-shrink:0;}
+.vtm-title{font-size:.95rem;font-weight:800;}
+.vtm-close{margin-left:auto;background:none;border:none;color:var(--mu2);font-size:1.1rem;cursor:pointer;}
+.vtm-table-wrap{overflow:auto;flex:1;}
+.vtm-table{width:100%;border-collapse:collapse;font-size:.7rem;}
+.vtm-table th{background:var(--s2);padding:.45rem .6rem;text-align:left;font-size:.6rem;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--mu);border-bottom:1px solid var(--b);white-space:nowrap;}
+.vtm-table td{padding:.4rem .6rem;border-bottom:1px solid var(--b);vertical-align:middle;}
+.vtm-table tr:hover td{background:var(--s2);}
+.vtm-table td.plate{font-family:var(--mono);font-weight:700;cursor:pointer;color:var(--ac);}
+.vtm-table td.plate:hover{text-decoration:underline;}
+.status-pill{display:inline-flex;align-items:center;gap:.2rem;padding:.1rem .4rem;border-radius:20px;font-size:.6rem;font-weight:700;}
+.status-pill.red{background:var(--redbg);color:var(--red);border:1px solid var(--redbr);}
+.status-pill.grn{background:var(--grnbg);color:var(--grn);}
+.status-pill.yel{background:var(--yelbg);color:var(--yel);}
+.status-pill.mu{background:var(--s3);color:var(--mu2);}
+
+/* TAREAS */
+.tasks-list{display:flex;flex-direction:column;gap:.35rem;}
+.task-item{background:var(--s);border:1px solid var(--b);border-radius:9px;padding:.6rem .8rem;display:flex;align-items:flex-start;gap:.6rem;animation:slideIn .15s ease;}
+.task-item.done{opacity:.5;}
+.task-check{width:15px;height:15px;border-radius:4px;border:2px solid var(--b2);background:none;cursor:pointer;flex-shrink:0;margin-top:.1rem;display:flex;align-items:center;justify-content:center;transition:all .12s;}
+.task-check:hover{border-color:var(--ac);}
+.task-check.done{background:var(--grn);border-color:var(--grn);font-size:.7rem;color:#000;}
+.task-content{flex:1;}
+.task-title{font-size:.78rem;font-weight:600;margin-bottom:.18rem;}
+.task-meta{font-size:.62rem;color:var(--mu2);font-family:var(--mono);}
+.task-meta .assignee{color:var(--ac);}
+.task-meta .plate-ref{background:var(--s2);border-radius:3px;padding:.02rem .22rem;}
+.task-pri{font-size:.56rem;font-weight:800;padding:.07rem .32rem;border-radius:5px;text-transform:uppercase;letter-spacing:.5px;flex-shrink:0;}
+.task-pri.alta{background:var(--redbg);color:var(--red);border:1px solid var(--redbr);}
+.task-pri.media{background:var(--yelbg);color:var(--yel);}
+.task-pri.baja{background:var(--grnbg);color:var(--grn);}
+.task-del{background:none;border:none;color:var(--mu);cursor:pointer;font-size:.78rem;padding:.08rem;transition:color .12s;flex-shrink:0;}
+.task-del:hover{color:var(--red);}
+
+/* NEW TASK MODAL */
+#ntm{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:600;display:none;align-items:center;justify-content:center;}
+#ntm.show{display:flex;}
+.ntm-box{background:var(--s);border:1px solid var(--b2);border-radius:14px;width:420px;max-width:95vw;padding:1.3rem;}
+.ntm-title{font-size:.92rem;font-weight:800;margin-bottom:.9rem;}
+.ntm-label{font-size:.62rem;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--mu);margin-bottom:.28rem;display:block;}
+.ntm-input{width:100%;background:var(--s2);border:1px solid var(--b);border-radius:7px;padding:.48rem .75rem;font-size:.8rem;color:var(--tx);font-family:var(--sans);outline:none;transition:border-color .15s;margin-bottom:.65rem;}
+.ntm-input:focus{border-color:var(--ac);}
+.ntm-row{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;}
+.ntm-select{width:100%;background:var(--s2);border:1px solid var(--b);border-radius:7px;padding:.48rem .75rem;font-size:.8rem;color:var(--tx);font-family:var(--sans);outline:none;margin-bottom:.65rem;cursor:pointer;}
+.ntm-actions{display:flex;gap:.45rem;margin-top:.2rem;}
+.ntm-cancel{flex:1;background:var(--s2);border:1px solid var(--b);border-radius:7px;padding:.45rem;font-size:.78rem;color:var(--mu2);cursor:pointer;font-family:var(--sans);transition:all .12s;}
+.ntm-cancel:hover{color:var(--tx);}
+.ntm-submit{flex:2;background:var(--ac);border:none;border-radius:7px;padding:.45rem;font-size:.78rem;font-weight:700;color:#000;cursor:pointer;font-family:var(--sans);}
+
+/* REASSIGN MODAL */
+#rm{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:600;display:none;align-items:center;justify-content:center;}
+#rm.show{display:flex;}
+.rm-box{background:var(--s);border:1px solid var(--b2);border-radius:14px;width:360px;max-width:95vw;padding:1.3rem;}
+.rm-list{display:flex;flex-direction:column;gap:.28rem;max-height:200px;overflow-y:auto;margin:1rem 0;}
+.rm-opt{background:var(--s2);border:1px solid var(--b);border-radius:7px;padding:.45rem .75rem;cursor:pointer;font-size:.78rem;transition:all .12s;display:flex;align-items:center;gap:.45rem;}
+.rm-opt:hover{border-color:var(--ac);color:var(--ac);}
+.rm-av{width:20px;height:20px;border-radius:50%;background:var(--ac);display:flex;align-items:center;justify-content:center;font-size:.56rem;font-weight:800;color:#000;}
+
+/* COTIZACIONES */
+.cotiz-table{width:100%;border-collapse:collapse;font-size:.72rem;}
+.cotiz-table th{background:var(--s2);padding:.4rem .65rem;text-align:left;font-size:.6rem;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--mu);border-bottom:1px solid var(--b);white-space:nowrap;}
+.cotiz-table td{padding:.38rem .65rem;border-bottom:1px solid var(--b);vertical-align:middle;}
+.cotiz-table tr:hover td{background:var(--s2);}
+.cotiz-group-header{background:var(--s3);padding:.35rem .65rem;font-size:.68rem;font-weight:700;color:var(--mu2);border-bottom:1px solid var(--b);display:flex;align-items:center;gap:.5rem;}
+
+/* ESPERANDO PARTES */
+.partes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:.7rem;}
+.partes-card{background:var(--s);border:1px solid var(--b);border-radius:12px;overflow:hidden;animation:slideIn .2s ease;}
+.partes-card.urgente{border-color:var(--red);}
+.partes-head{padding:.7rem .9rem;background:var(--s2);border-bottom:1px solid var(--b);}
+.partes-plate{font-size:.85rem;font-weight:800;font-family:var(--mono);}
+.partes-info{font-size:.65rem;color:var(--mu2);margin-top:.1rem;}
+.partes-dias{font-size:.65rem;font-family:var(--mono);padding:.12rem .35rem;border-radius:4px;}
+.partes-dias.red{background:var(--redbg);color:var(--red);}
+.partes-dias.yel{background:var(--yelbg);color:var(--yel);}
+.partes-dias.grn{background:var(--grnbg);color:var(--grn);}
+.partes-body{padding:.7rem .9rem;}
+.partes-status-sel{width:100%;background:var(--s3);border:1px solid var(--b);border-radius:7px;padding:.38rem .55rem;font-size:.73rem;color:var(--tx);font-family:var(--sans);outline:none;margin-bottom:.5rem;cursor:pointer;}
+.partes-note-input{width:100%;background:var(--s3);border:1px solid var(--b);border-radius:7px;padding:.38rem .55rem;font-size:.72rem;color:var(--tx);font-family:var(--sans);outline:none;resize:none;height:48px;transition:border-color .12s;}
+.partes-note-input:focus{border-color:var(--ora);}
+.partes-save-btn{margin-top:.3rem;background:var(--ora);color:#000;border:none;border-radius:6px;padding:.28rem .65rem;font-size:.68rem;font-weight:700;cursor:pointer;font-family:var(--sans);}
+.partes-log{margin-top:.5rem;font-size:.62rem;color:var(--mu);font-family:var(--mono);border-top:1px solid var(--b);padding-top:.4rem;}
+
+/* METRICAS */
+.metrics-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:.7rem;margin-bottom:1rem;}
+.metric-card{background:var(--s);border:1px solid var(--b);border-radius:12px;padding:.9rem;animation:slideIn .2s ease;}
+.metric-title{font-size:.65rem;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--mu);margin-bottom:.6rem;}
+.metric-item{display:flex;align-items:center;gap:.5rem;padding:.3rem 0;border-bottom:1px solid var(--b);}
+.metric-item:last-child{border-bottom:none;}
+.metric-rank{font-size:.65rem;font-family:var(--mono);color:var(--mu);width:18px;flex-shrink:0;}
+.metric-name{flex:1;font-size:.72rem;}
+.metric-bar-wrap{width:70px;height:5px;background:var(--b2);border-radius:3px;flex-shrink:0;}
+.metric-bar{height:5px;border-radius:3px;}
+.metric-bar.red{background:var(--red);}
+.metric-bar.yel{background:var(--yel);}
+.metric-bar.grn{background:var(--grn);}
+.metric-val{font-size:.65rem;font-family:var(--mono);text-align:right;width:30px;flex-shrink:0;}
+.metric-bignum{font-size:2rem;font-weight:800;font-family:var(--mono);}
+.metric-bignum.red{color:var(--red);}
+.metric-bignum.grn{color:var(--grn);}
+.metric-bignum.yel{color:var(--yel);}
+.metric-biglabel{font-size:.7rem;color:var(--mu2);margin-top:.1rem;}
+.metrics-kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:.5rem;margin-bottom:1rem;}
+.kpi-card{background:var(--s);border:1px solid var(--b);border-radius:10px;padding:.7rem;text-align:center;}
+
+/* RECOMENDACIONES */
+.reco-gen-btn{background:var(--ac);color:#000;border:none;border-radius:8px;padding:.42rem .9rem;font-size:.78rem;font-weight:800;cursor:pointer;font-family:var(--sans);display:flex;align-items:center;gap:.35rem;}
+.reco-gen-btn:disabled{opacity:.5;cursor:not-allowed;}
+.reco-thinking{display:none;align-items:center;gap:.5rem;font-size:.73rem;color:var(--mu2);padding:.5rem 0;}
+.reco-thinking.show{display:flex;}
+.spin{width:14px;height:14px;border:2px solid var(--b2);border-top-color:var(--ac);border-radius:50%;animation:spin 1s linear infinite;}
+.reco-top-actions{display:flex;gap:.5rem;margin-bottom:.8rem;align-items:center;}
+.select-all-btn{background:none;border:1px solid var(--b2);border-radius:6px;padding:.25rem .6rem;font-size:.68rem;color:var(--mu2);cursor:pointer;font-family:var(--sans);transition:all .12s;}
+.select-all-btn:hover{border-color:var(--ac);color:var(--ac);}
+.send-selected-btn{background:var(--grn);color:#000;border:none;border-radius:6px;padding:.25rem .7rem;font-size:.68rem;font-weight:700;cursor:pointer;font-family:var(--sans);}
+.reco-list{display:flex;flex-direction:column;gap:.4rem;}
+.reco-item{background:var(--s);border:1px solid var(--b);border-radius:9px;padding:.6rem .8rem;display:flex;align-items:flex-start;gap:.55rem;animation:slideIn .15s ease;}
+.reco-item.lagging{border-left:3px solid var(--red);}
+.reco-item.leading{border-left:3px solid var(--blu);}
+.reco-check{width:15px;height:15px;border-radius:4px;border:2px solid var(--b2);cursor:pointer;flex-shrink:0;margin-top:.1rem;display:flex;align-items:center;justify-content:center;transition:all .12s;}
+.reco-check:hover{border-color:var(--ac);}
+.reco-check.checked{background:var(--ac);border-color:var(--ac);font-size:.7rem;color:#000;}
+.reco-content{flex:1;}
+.reco-plate{font-size:.7rem;font-weight:800;font-family:var(--mono);}
+.reco-badge{font-size:.56rem;font-weight:700;padding:.06rem .28rem;border-radius:4px;text-transform:uppercase;margin-left:.25rem;}
+.reco-badge.red{background:var(--redbg);color:var(--red);}
+.reco-badge.blu{background:var(--blubg);color:var(--blu);}
+.reco-text{font-size:.73rem;color:var(--mu2);line-height:1.5;margin-top:.1rem;}
+.reco-asesor{font-size:.62rem;color:var(--mu);font-family:var(--mono);margin-top:.1rem;}
+.reco-send-btn{background:none;border:1px solid var(--b2);border-radius:5px;padding:.18rem .45rem;font-size:.6rem;color:var(--mu2);cursor:pointer;font-family:var(--sans);transition:all .12s;flex-shrink:0;}
+.reco-send-btn:hover{border-color:var(--grn);color:var(--grn);}
+.reco-send-btn.sent{border-color:var(--grn);color:var(--grn);background:var(--grnbg);}
+.reco-empty{color:var(--mu);font-size:.8rem;text-align:center;padding:2.5rem;}
+
+/* MISC */
+.empty-phase{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--mu);font-size:.68rem;gap:.28rem;padding:1rem;}
+.spinner{width:18px;height:18px;border:2px solid var(--b2);border-top-color:var(--ac);border-radius:50%;animation:spin 1s linear infinite;}
+.no-data{color:var(--mu);font-size:.75rem;text-align:center;padding:2rem;}
+</style>
+</head>
+<body>
+<div id="setup">
+  <div class="setup-box">
+    <div class="setup-logo"><div class="dot"></div>TORRE CENTRAL — AUTOLAB</div>
+    <div class="setup-title">Configuración inicial</div>
+    <div class="setup-sub">Conecta tu Google Sheet para activar el radar de SLA en tiempo real.</div>
+    <label class="setup-label">Tu nombre</label>
+    <input class="setup-input" id="cfg-user" placeholder="Ej: Adriana Buitrago">
+    <label class="setup-label">URL del Apps Script</label>
+    <input class="setup-input" id="cfg-key" placeholder="https://script.google.com/macros/s/...">
+    <div class="setup-note">Esta URL la obtienes en tu Google Sheet → Extensiones → Apps Script → Implementar → Gestionar implementaciones.</div>
+    <div class="setup-err" id="setup-err"></div>
+    <button class="setup-btn" id="setup-btn" onclick="doSetup()">Activar Torre Central →</button>
+    <button onclick="localStorage.removeItem('torre_cfg');location.reload();" style="width:100%;background:none;border:none;color:var(--mu);font-size:.68rem;cursor:pointer;margin-top:.6rem;font-family:var(--sans);">↺ Resetear configuración guardada</button>
+  </div>
+</div>
+
+<div id="app">
+  <!-- TOPBAR -->
+  <div id="topbar">
+    <div class="top-logo">🚁 Torre<span> Central</span></div>
+    <div class="top-sep"></div>
+    <div class="top-stat red"><span class="n" id="stat-lag">—</span><span class="lbl">lag</span></div>
+    <div class="top-stat blu"><span class="n" id="stat-lead">—</span><span class="lbl">lead</span></div>
+    <div class="top-stat grn"><span class="n" id="stat-ok">—</span><span class="lbl">ok</span></div>
+    <div class="top-sep"></div>
+    <div class="top-stat"><span class="n" id="stat-total">—</span><span class="lbl">en op.</span></div>
+    <div class="filter-bar">
+      <select class="filter-select" id="filter-asesor" onchange="applyFilters()">
+        <option value="">Todos los asesores</option>
+      </select>
+      <!-- Flotas -->
+      <div class="ms-wrap" id="flota-wrap">
+        <button class="ms-btn" id="flota-btn" onclick="toggleMs('flota',event)"><span id="flota-label">Flotas</span> ▾</button>
+        <div class="ms-dropdown" id="flota-dd">
+          <div class="ms-dd-head"><span class="ms-dd-title">Flotas</span><button class="ms-clear" onclick="clearMs('flota')">Limpiar</button></div>
+          <div class="ms-list" id="flota-list"></div>
+        </div>
+      </div>
+      <!-- Talleres -->
+      <div class="ms-wrap" id="taller-wrap">
+        <button class="ms-btn" id="taller-btn" onclick="toggleMs('taller',event)"><span id="taller-label">Talleres</span> ▾</button>
+        <div class="ms-dropdown" id="taller-dd">
+          <div class="ms-dd-head"><span class="ms-dd-title">Talleres</span><button class="ms-clear" onclick="clearMs('taller')">Limpiar</button></div>
+          <div class="ms-mode-row"><input type="checkbox" id="taller-excl" onchange="tallerExclMode=this.checked;updateMsBtn('taller');applyFilters()"><label for="taller-excl">Modo excluir</label></div>
+          <div class="ms-list" id="taller-list"></div>
+        </div>
+      </div>
+      <!-- Servicio -->
+      <div class="ms-wrap" id="servicio-wrap">
+        <button class="ms-btn" id="servicio-btn" onclick="toggleMs('servicio',event)"><span id="servicio-label">Servicio</span> ▾</button>
+        <div class="ms-dropdown" id="servicio-dd">
+          <div class="ms-dd-head"><span class="ms-dd-title">Tipo de servicio</span><button class="ms-clear" onclick="clearMs('servicio')">Limpiar</button></div>
+          <div class="ms-list" id="servicio-list"></div>
+        </div>
+      </div>
+    </div>
+    <div class="top-right">
+      <span class="timer" id="timer-txt">—</span>
+      <button class="refresh-btn" id="refresh-btn" onclick="loadData()"><span class="ico">↻</span> Actualizar</button>
+      <div class="top-user"><div class="av" id="user-av">A</div><span id="user-name">—</span></div>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="nav-section">Radar</div>
+    <div class="nav-item active" onclick="showView('torre')" id="nav-torre"><span class="ico">📡</span> Torre<span class="nbadge" id="badge-lag" style="display:none">0</span></div>
+    <div class="nav-section">Gestión</div>
+    <div class="nav-item" onclick="showView('cotizaciones')" id="nav-cotizaciones"><span class="ico">💰</span> Cotizaciones</div>
+    <div class="nav-item" onclick="showView('partes')" id="nav-partes"><span class="ico">🔩</span> Esp. Partes<span class="nbadge yel" id="badge-partes" style="display:none">0</span></div>
+    <div class="nav-section">Equipo</div>
+    <div class="nav-item" onclick="showView('asesores')" id="nav-asesores"><span class="ico">👥</span> Asesores</div>
+    <div class="nav-item" onclick="showView('tareas')" id="nav-tareas"><span class="ico">✅</span> Tareas<span class="nbadge blu" id="badge-tasks" style="display:none">0</span></div>
+    <div class="nav-section">Análisis</div>
+    <div class="nav-item" onclick="showView('metricas')" id="nav-metricas"><span class="ico">📊</span> Métricas</div>
+    <div class="nav-item" onclick="showView('recomendaciones')" id="nav-recomendaciones"><span class="ico">🧠</span> IA</div>
+    <div class="nav-bottom"><div class="last-update" id="last-update">Sin datos</div></div>
+  </div>
+
+  <!-- MAIN -->
+  <div id="main">
+    <!-- TORRE -->
+    <div id="view-torre" style="display:flex;flex-direction:column;height:100%;overflow:hidden;">
+      <div class="torre-header">
+        <div class="torre-title">📡 Radar</div>
+        <div style="display:flex;gap:.4rem;margin-left:.5rem;">
+          <button onclick="exportPhase('entrega_sinconf')" style="background:none;border:1px solid var(--redbr);border-radius:5px;padding:.18rem .5rem;font-size:.62rem;color:var(--red);cursor:pointer;font-family:var(--sans);">⬇ Sin confirmar</button>
+          <button onclick="exportPhase('entrega')" style="background:none;border:1px solid var(--b2);border-radius:5px;padding:.18rem .5rem;font-size:.62rem;color:var(--mu2);cursor:pointer;font-family:var(--sans);">⬇ Por entregar</button>
+          <button onclick="exportPhase('aprobacion')" style="background:none;border:1px solid var(--blubr);border-radius:5px;padding:.18rem .5rem;font-size:.62rem;color:var(--blu);cursor:pointer;font-family:var(--sans);">⬇ Aprobaciones</button>
+          <button onclick="exportAll()" style="background:none;border:1px solid var(--b2);border-radius:5px;padding:.18rem .5rem;font-size:.62rem;color:var(--mu2);cursor:pointer;font-family:var(--sans);">⬇ Todo</button>
+        </div>
+        <div class="legend">
+          <div class="leg"><div class="leg-dot red"></div>Lagging</div>
+          <div class="leg"><div class="leg-dot blu"></div>Leading</div>
+          <div class="leg"><div class="leg-dot ok"></div>Ok</div>
+        </div>
+      </div>
+      <div class="phases-grid" id="phases-grid"></div>
+    </div>
+
+    <!-- COTIZACIONES -->
+    <div id="view-cotizaciones" class="view-wrap">
+      <div class="view-title">💰 Cotizaciones pendientes</div>
+      <div class="view-sub">Cotizaciones por asesor ordenadas de más antigua a más nueva.</div>
+      <div id="cotiz-content"></div>
+    </div>
+
+    <!-- ESPERANDO PARTES -->
+    <div id="view-partes" class="view-wrap">
+      <div style="display:flex;align-items:center;gap:.8rem;margin-bottom:.5rem;">
+        <div><div class="view-title">🔩 Esperando Partes</div><div class="view-sub">Vehículos en espera de partes — ordenados por días esperando.</div></div>
+      </div>
+      <div class="partes-grid" id="partes-grid"></div>
+    </div>
+
+    <!-- ASESORES -->
+    <div id="view-asesores" class="view-wrap">
+      <div class="view-title">👥 Panel de Asesores</div>
+      <div style="display:flex;gap:.5rem;margin-bottom:.8rem;align-items:center;flex-wrap:wrap;">
+        <span style="font-size:.68rem;color:var(--mu2);">Excluir fases:</span>
+        <div class="ms-wrap">
+          <button class="ms-btn" id="fase-btn" onclick="toggleMs('fase',event)"><span id="fase-label">Todas las fases</span> ▾</button>
+          <div class="ms-dropdown" id="fase-dd">
+            <div class="ms-dd-head"><span class="ms-dd-title">Excluir fases</span><button class="ms-clear" onclick="clearMs('fase')">Limpiar</button></div>
+            <div class="ms-list" id="fase-list"></div>
+          </div>
+        </div>
+      </div>
+      <div class="asesores-grid" id="asesores-grid"></div>
+    </div>
+
+    <!-- TAREAS -->
+    <div id="view-tareas" class="view-wrap">
+      <div class="view-title">✅ Tareas</div>
+      <div class="view-controls">
+        <button class="filter-btn active" onclick="filterTasks('all',this)">Todas</button>
+        <button class="filter-btn" onclick="filterTasks('pending',this)">Pendientes</button>
+        <button class="filter-btn" onclick="filterTasks('done',this)">Completadas</button>
+        <select class="filter-select" id="tasks-asesor-filter" onchange="renderTasks()">
+          <option value="">Todos los asesores</option>
+        </select>
+        <button class="action-btn" onclick="openNtm()" style="margin-left:auto">+ Nueva</button>
+      </div>
+      <div class="tasks-list" id="tasks-list"></div>
+    </div>
+
+    <!-- METRICAS -->
+    <div id="view-metricas" class="view-wrap">
+      <div class="view-title">📊 Métricas</div>
+      <div class="view-sub">Foco de atención: talleres, asesores y flotas con más problemas.</div>
+      <div id="metricas-content"></div>
+    </div>
+
+    <!-- RECOMENDACIONES IA -->
+    <div id="view-recomendaciones" class="view-wrap">
+      <div style="display:flex;align-items:flex-start;gap:.8rem;margin-bottom:.8rem;">
+        <div><div class="view-title">🧠 Recomendaciones IA</div><div class="view-sub">Plan de acción coche a coche generado por IA.</div></div>
+        <button class="reco-gen-btn" id="reco-btn" onclick="generateRecos()">✦ Generar plan</button>
+      </div>
+      <div class="reco-thinking" id="reco-thinking"><div class="spin"></div><span>Analizando operación...</span></div>
+      <div class="reco-top-actions" id="reco-top-actions" style="display:none;">
+        <button class="select-all-btn" onclick="selectAllRecos()">Seleccionar todo</button>
+        <button class="send-selected-btn" onclick="sendSelectedRecos()">→ Enviar seleccionadas como tareas</button>
+        <span style="font-size:.68rem;color:var(--mu2);margin-left:.3rem;" id="reco-selected-count"></span>
+      </div>
+      <div class="reco-list" id="reco-list"><div class="reco-empty">Presiona "Generar plan" para analizar todos los vehículos con alertas.</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- TOOLTIP -->
+<div id="tooltip"></div>
+
+<!-- MODAL APPOINTMENT -->
+<div id="modal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div class="modal-dot" id="m-dot"></div>
+      <div><div class="modal-plate" id="m-plate">—</div><div class="modal-sub" id="m-sub">—</div></div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="m-alert-box"></div>
+      <div class="modal-grid" id="m-grid"></div>
+      <div class="modal-section">📝 Notas</div>
+      <div class="notes-area" id="m-notes"></div>
+      <textarea class="note-input" id="m-note-input" placeholder="Agregar nota..."></textarea>
+      <button class="note-add-btn" onclick="addNote()">Agregar nota</button>
+      <div class="modal-section" style="margin-top:.9rem;">✅ Crear Tarea</div>
+      <div class="task-create-row">
+        <input id="m-task-title" placeholder="Tarea para este vehículo...">
+        <select id="m-task-assignee"></select>
+        <select id="m-task-pri"><option value="alta">🔴 Alta</option><option value="media" selected>🟡 Media</option><option value="baja">🟢 Baja</option></select>
+        <button class="task-create-btn" onclick="createTaskFromModal()">+ Crear</button>
+      </div>
+      <div class="modal-section">💡 Sugeridas</div>
+      <div id="m-suggestions"></div>
+    </div>
+  </div>
+</div>
+
+<!-- VER TODOS MODAL -->
+<div id="vertodos-modal">
+  <div class="vtm-box">
+    <div class="vtm-head">
+      <div class="vtm-title" id="vtm-title">Vehículos</div>
+      <button class="vtm-close" onclick="closeVTM()">✕</button>
+    </div>
+    <div class="vtm-table-wrap"><table class="vtm-table" id="vtm-table"></table></div>
+  </div>
+</div>
+
+<!-- NEW TASK MODAL -->
+<div id="ntm">
+  <div class="ntm-box">
+    <div class="ntm-title">Nueva Tarea</div>
+    <label class="ntm-label">Título</label>
+    <input class="ntm-input" id="ntm-title" placeholder="Ej: Seguimiento cotización pendiente">
+    <label class="ntm-label">Vehículo (placa)</label>
+    <input class="ntm-input" id="ntm-plate" placeholder="Opcional">
+    <div class="ntm-row">
+      <div><label class="ntm-label">Asignar a</label><select class="ntm-select" id="ntm-assignee"></select></div>
+      <div><label class="ntm-label">Prioridad</label><select class="ntm-select" id="ntm-priority"><option value="alta">Alta</option><option value="media" selected>Media</option><option value="baja">Baja</option></select></div>
+    </div>
+    <div class="ntm-actions">
+      <button class="ntm-cancel" onclick="closeNtm()">Cancelar</button>
+      <button class="ntm-submit" onclick="createTask()">Crear →</button>
+    </div>
+  </div>
+</div>
+
+<!-- REASSIGN MODAL -->
+<div id="rm">
+  <div class="rm-box">
+    <div class="ntm-title">Reasignar vehículos</div>
+    <div style="font-size:.75rem;color:var(--mu2);margin-bottom:.3rem;" id="rm-sub"></div>
+    <div class="rm-list" id="rm-list"></div>
+    <button class="ntm-cancel" onclick="closeRm()" style="width:100%">Cancelar</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+let CFG = {};
+let allVehicles = [];
+let filteredVehicles = [];
+let currentModal = null;
+let nextRefresh = 300;
+let timerInterval = null;
+let currentTaskFilter = 'all';
+let reassignTarget = null;
+let recoItems = [];
+
+// Multi-select state
+const msState = {
+  flota: new Set(),
+  taller: new Set(),
+  servicio: new Set(),
+  fase: new Set(), // for asesores phase exclusion
+};
+let tallerExclMode = false;
+
+const PHASES = ['diagnostico','cotizacion','asignar_cotizacion','aprobacion','ejecucion','entrega_sinconf','entrega'];
+const PHASE_LABELS = {diagnostico:'🔬 Diagnóstico', cotizacion:'💰 Cotización', asignar_cotizacion:'📋 Asignar Cotiz.', aprobacion:'✍️ Aprobación', ejecucion:'🔧 Ejecución', entrega_sinconf:'⚠️ Sin Confirmar', entrega:'🚗 Por Entregar'};
+const FASE_LABELS = {diagnostico:'Diagnóstico', cotizacion:'Cotización', aprobacion:'Aprobación', ejecucion:'Ejecución', entrega_sinconf:'Sin Confirmar', entrega:'Por Entregar'};
+const SERVICIOS = ['CORRECTIVO','HYP SENCILLO','HYP COMPLEJO','ESTACIONAMIENTO'];
+
+// ═══════════════════════════════════════════════════════════════
+// SETUP
+// ═══════════════════════════════════════════════════════════════
+async function doSetup() {
+  const user = document.getElementById('cfg-user').value.trim();
+  const key = document.getElementById('cfg-key').value.trim();
+  if (!user || !key) { showErr('Nombre y URL del Apps Script son requeridos.'); return; }
+  const btn = document.getElementById('setup-btn');
+  btn.disabled = true; btn.textContent = 'Conectando...';
+  const timeout = setTimeout(() => { btn.disabled = false; btn.textContent = 'Activar Torre Central →'; showErr('Timeout. Verifica la URL.'); }, 15000);
+  window._setupCb = function(rows) {
+    clearTimeout(timeout);
+    document.getElementById('setup-test-script')?.remove();
+    if (Array.isArray(rows)) {
+      CFG = { user, key };
+      localStorage.setItem('torre_cfg', JSON.stringify(CFG));
+      initApp();
+    } else {
+      btn.disabled = false; btn.textContent = 'Activar Torre Central →';
+      showErr('Formato inválido. Verifica el Apps Script.');
+    }
+  };
+  const s = document.createElement('script');
+  s.id = 'setup-test-script';
+  s.src = key + '?callback=_setupCb';
+  s.onerror = () => { clearTimeout(timeout); btn.disabled = false; btn.textContent = 'Activar Torre Central →'; showErr('No se pudo conectar.'); };
+  document.head.appendChild(s);
+}
+function showErr(msg) { const e = document.getElementById('setup-err'); e.textContent = msg; e.style.display = 'block'; }
+function initApp() {
+  document.getElementById('setup').classList.add('hide');
+  document.getElementById('app').classList.add('show');
+  document.getElementById('user-name').textContent = CFG.user;
+  document.getElementById('user-av').textContent = CFG.user.charAt(0).toUpperCase();
+  loadData();
+  startTimer();
+  renderTasksBadge();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DATA FETCH
+// ═══════════════════════════════════════════════════════════════
+function loadData() {
+  const btn = document.getElementById('refresh-btn');
+  btn.classList.add('spinning');
+  document.getElementById('jsonp-load')?.remove();
+  const timeout = setTimeout(() => { btn.classList.remove('spinning'); }, 20000);
+  window._dataCb = function(rows) {
+    clearTimeout(timeout);
+    if (Array.isArray(rows)) {
+      allVehicles = rows.map(obj => {
+        Object.keys(obj).forEach(k => { if (obj[k] === null || obj[k] === undefined) obj[k] = ''; });
+        obj._phase = detectPhase(obj);
+        obj._alert = detectAlert(obj);
+        obj._alertMsg = getAlertMsg(obj);
+        return obj;
+      }).filter(v => v._phase !== 'otro');
+      processData();
+    }
+    btn.classList.remove('spinning');
+    document.getElementById('last-update').textContent = 'Actualizado: ' + new Date().toLocaleTimeString('es-MX');
+    nextRefresh = 300;
+  };
+  const s = document.createElement('script');
+  s.id = 'jsonp-load';
+  s.src = CFG.key + '?callback=_dataCb';
+  s.onerror = () => { clearTimeout(timeout); btn.classList.remove('spinning'); };
+  document.head.appendChild(s);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PHASE / ALERT DETECTION
+// ═══════════════════════════════════════════════════════════════
+function detectPhase(r) {
+  const estado = (r['estado'] || '').toLowerCase();
+  const sla = r['Estado SLA'] || '';
+  const sla3 = r['SLA 3'] || '';
+  const s2 = r['ESTADO 2'] || '';
+  const servicio = (r['SERVICIO'] || '').toUpperCase();
+  if (servicio === 'ESTACIONAMIENTO') return 'resguardo';
+  if (estado.includes('sin confirmacion') || s2.includes('SIN CONFIRMACION')) return 'entrega_sinconf';
+  if (estado.includes('por entregar') || sla.includes('Por entregar') || s2.includes('PARA ENTREGA')) return 'entrega';
+  if (sla.includes('SLA Entrega') || sla3 === 'TRABAJANDOSE' || s2 === 'TRABAJANDOSE' || estado === 'entre trabajos') return 'ejecucion';
+  if (sla.includes('sin aprobar') || sla.includes('Sin aprobar') || sla3 === 'ESPERANDO APROBACION' || s2 === 'ESPERANDO APROBACION') return 'aprobacion';
+  if (sla.includes('Por empezar')) return 'diagnostico';
+  if (sla.includes('Cotizaci') || sla3 === 'COTIZANDO / DIAGNOSTICANDO' || s2 === 'COTIZANDO / DIAGNOSTICANDO') return 'cotizacion';
+  if (sla3.includes('RESGUARDO') || s2.includes('RESGUARDO') || s2.includes('COCHES EN TALLER SIN')) return 'resguardo';
+  return 'otro';
+}
+
+function detectAlert(r) {
+  const phase = r._phase;
+  const sla = r['Estado SLA'] || '';
+  const dias = parseFloat(r['dias habiles desde recepcion']) || 0;
+  const pctQuote = parseFloat(r['pct_sla_quote_teoric_expiration']) || 0;
+  const servicio = (r['SERVICIO'] || '').toUpperCase();
+  if (phase === 'diagnostico') return sla.includes('más de 30') ? 'lagging' : 'ok';
+  if (phase === 'cotizacion') {
+    if (dias > 1) return 'lagging';
+    if (sla.includes('pronto a vencer') || pctQuote >= 0.6) return 'leading';
+    return 'ok';
+  }
+  if (phase === 'aprobacion') {
+    if (sla.includes('Más de 4')) return 'lagging';
+    if (sla.includes('Menos de 2')) return 'leading';
+    return 'ok';
+  }
+  if (phase === 'ejecucion') {
+    if (sla === 'SLA Entrega Vencido') return 'lagging';
+    if (sla.includes('pronto a vencer')) return 'leading';
+    const max = servicio.includes('HYP COMPLEJO') ? 14 : servicio.includes('HYP') ? 5 : 3;
+    if (dias > max) return 'lagging';
+    if (dias >= max * 0.7) return 'leading';
+    return 'ok';
+  }
+  if (phase === 'entrega_sinconf') return 'lagging';
+  if (phase === 'entrega') return 'ok';
+  return 'ok';
+}
+
+function getAlertMsg(r) {
+  const p = r._phase; const a = r._alert;
+  const dias = parseFloat(r['dias habiles desde recepcion']) || 0;
+  const servicio = (r['SERVICIO'] || '').toUpperCase();
+  const max = servicio.includes('HYP COMPLEJO') ? 14 : servicio.includes('HYP') ? 5 : 3;
+  if (a === 'lagging') {
+    if (p === 'diagnostico') return '⚠ Sin iniciar revisión (+30 min)';
+    if (p === 'cotizacion') return `⚠ SLA cotización vencido (${dias.toFixed(1)}d)`;
+    if (p === 'aprobacion') return '⚠ Sin aprobación +4h';
+    if (p === 'ejecucion') return dias > max ? `⚠ Límite de tipo vencido: ${(dias-max).toFixed(1)}d extra` : '⚠ SLA de entrega vencido';
+    if (p === 'entrega_sinconf') return '⚠ Taller no ha confirmado la salida del coche';
+  }
+  if (a === 'leading') {
+    if (p === 'cotizacion') return `↗ Cotización al ${Math.round(pct(r)*100)}% del SLA`;
+    if (p === 'aprobacion') return '↗ Aprobación próxima a vencer';
+    if (p === 'ejecucion') return `↗ SLA próximo a vencer (${dias.toFixed(1)}/${max}d)`;
+  }
+  return '';
+}
+function pct(r) { return parseFloat(r['pct_sla_quote_teoric_expiration']) || 0; }
+
+// SLA helpers
+function getServiceLimit(r) {
+  const s = (r['SERVICIO'] || '').toUpperCase();
+  if (s.includes('HYP COMPLEJO')) return { max: 14, label: 'HyP Complejo', short: '14d' };
+  if (s.includes('HYP')) return { max: 5, label: 'HyP Sencillo', short: '5d' };
+  return { max: 3, label: 'Correctivo', short: '3d' };
+}
+function getSLAInfo(r) {
+  const lim = getServiceLimit(r);
+  const dias = parseFloat(r['dias habiles desde recepcion']) || 0;
+  const overrun = dias - lim.max;
+  if (overrun > 0) return { label: `Vencido hace ${overrun.toFixed(1)}d`, css: 'expired' };
+  const rem = lim.max - dias;
+  if (rem < 1) return { label: `Vence en ${(rem*8).toFixed(0)}h`, css: 'urgent' };
+  return { label: `${rem.toFixed(1)}d restantes`, css: 'safe' };
+}
+function formatTime(ms) {
+  const h = ms/3600000;
+  if (h < 1) return Math.round(ms/60000)+'min';
+  if (h < 24) return h.toFixed(1)+'h';
+  return (h/24).toFixed(1)+'d';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FILTERS & PROCESS
+// ═══════════════════════════════════════════════════════════════
+function processData() {
+  buildFilterOptions();
+  applyFilters();
+  renderPartesBadge();
+  renderTasksBadge();
+}
+
+function buildFilterOptions() {
+  const asesores = [...new Set(allVehicles.map(v=>v['superadmin']).filter(Boolean))].sort();
+  const flotas = [...new Set(allVehicles.map(v=>v['fleet']).filter(Boolean))].sort();
+  const talleres = [...new Set(allVehicles.map(v=>v['name_shop']).filter(Boolean))].sort();
+  const servicios = [...new Set(allVehicles.map(v=>(v['SERVICIO']||'').toUpperCase()).filter(Boolean))].sort();
+
+  // Asesor selects
+  ['filter-asesor','tasks-asesor-filter','ntm-assignee','m-task-assignee'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const cur = el.value;
+    el.innerHTML = `<option value="">Todos los asesores</option>` + asesores.map(a=>`<option value="${a}" ${a===cur?'selected':''}>${a}</option>`).join('');
+  });
+  // Also add Torre de Partes
+  ['ntm-assignee','m-task-assignee'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (!el.querySelector('option[value="Torre de Partes"]'))
+      el.insertAdjacentHTML('beforeend','<option value="Torre de Partes">🔩 Torre de Partes</option>');
+  });
+
+  // Multi-select lists
+  buildMsList('flota-list', flotas, 'flota');
+  buildMsList('taller-list', talleres, 'taller');
+  buildMsList('servicio-list', servicios, 'servicio');
+  buildMsList('fase-list', Object.keys(FASE_LABELS).map(k=>({val:k,label:FASE_LABELS[k]})), 'fase', true);
+  updateMsBtn('flota'); updateMsBtn('taller'); updateMsBtn('servicio'); updateMsBtn('fase');
+}
+
+function buildMsList(listId, items, key, useObj=false) {
+  const el = document.getElementById(listId);
+  if (!el) return;
+  el.innerHTML = items.map(item => {
+    const val = useObj ? item.val : item;
+    const label = useObj ? item.label : item;
+    const safeId = `ms-${key}-${val.replace(/[\s\W]/g,'_')}`;
+    return `<div class="ms-opt">
+      <input type="checkbox" id="${safeId}" value="${val}" ${msState[key]?.has(val)?'checked':''} onchange="toggleMsItem('${key}','${val.replace(/'/g,"\\'")}',this.checked)">
+      <label for="${safeId}">${label}</label>
+    </div>`;
+  }).join('');
+}
+
+function toggleMsItem(key, val, checked) {
+  if (checked) msState[key].add(val);
+  else msState[key].delete(val);
+  updateMsBtn(key);
+  if (key === 'fase') renderAsesores();
+  else applyFilters();
+}
+
+function clearMs(key) {
+  msState[key].clear();
+  document.querySelectorAll(`#${key==='fase'?'fase':'${key}'}-list input`).forEach(c=>c.checked=false);
+  document.querySelectorAll(`#${key}-list input[type=checkbox]`).forEach(c=>c.checked=false);
+  updateMsBtn(key);
+  if (key==='fase') renderAsesores();
+  else applyFilters();
+}
+
+function updateMsBtn(key) {
+  const btn = document.getElementById(`${key}-btn`);
+  const lbl = document.getElementById(`${key}-label`);
+  if (!btn || !lbl) return;
+  const set = msState[key];
+  const isExcl = key==='taller' && tallerExclMode;
+  const prefix = isExcl ? '🚫 ' : '';
+  const defaultLabels = {flota:'Flotas',taller:'Talleres',servicio:'Servicio',fase:'Todas las fases'};
+  if (set.size === 0) { lbl.textContent = defaultLabels[key]; btn.className = 'ms-btn'; }
+  else if (set.size === 1) { lbl.textContent = prefix+[...set][0].slice(0,16); btn.className = `ms-btn active-${key}`; }
+  else { lbl.textContent = prefix+set.size+' '+(key==='fase'?'excluidas':'selec.'); btn.className = `ms-btn active-${isExcl?'excl':key}`; }
+}
+
+function toggleMs(key, e) {
+  e.stopPropagation();
+  document.querySelectorAll('.ms-dropdown').forEach(d => { if (d.id !== `${key}-dd`) d.classList.remove('open'); });
+  document.getElementById(`${key}-dd`)?.classList.toggle('open');
+}
+document.addEventListener('click', () => document.querySelectorAll('.ms-dropdown').forEach(d=>d.classList.remove('open')));
+
+function applyFilters() {
+  const asesorF = document.getElementById('filter-asesor').value;
+  filteredVehicles = allVehicles.filter(v => {
+    if (asesorF && v['superadmin'] !== asesorF) return false;
+    if (msState.flota.size > 0 && !msState.flota.has(v['fleet'])) return false;
+    if (msState.taller.size > 0) {
+      const inSet = msState.taller.has(v['name_shop']);
+      if (tallerExclMode && inSet) return false;
+      if (!tallerExclMode && !inSet) return false;
+    }
+    if (msState.servicio.size > 0 && !msState.servicio.has((v['SERVICIO']||'').toUpperCase())) return false;
+    return true;
+  });
+  renderTorre();
+  renderAsesores();
+  renderCotizaciones();
+  renderMetricas();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TORRE RADAR
+// ═══════════════════════════════════════════════════════════════
+function renderTorre() {
+  const grid = document.getElementById('phases-grid');
+  grid.style.gridTemplateColumns = `repeat(${PHASES.length},1fr)`;
+  let totalLag=0,totalLead=0,totalOk=0;
+
+  grid.innerHTML = PHASES.map(phase => {
+    const vehicles = filteredVehicles.filter(v=>v._phase===phase);
+    const lag = vehicles.filter(v=>v._alert==='lagging');
+    const lead = vehicles.filter(v=>v._alert==='leading');
+    const ok = vehicles.filter(v=>v._alert==='ok');
+    totalLag+=lag.length; totalLead+=lead.length; totalOk+=ok.length;
+    const sorted = [...lag,...lead,...ok];
+    const cards = sorted.length === 0
+      ? `<div class="empty-phase"><div>✓</div><div>Sin alertas</div></div>`
+      : sorted.map(v=>renderCard(v)).join('');
+    return `<div class="phase-col">
+      <div class="phase-head">
+        <div class="phase-name">${PHASE_LABELS[phase]}</div>
+        <div class="phase-count"><span class="r">${lag.length} lag</span> · <span class="b">${lead.length} lead</span> · ${ok.length} ok</div>
+      </div>
+      <div class="phase-cards">${cards}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('stat-lag').textContent = totalLag;
+  document.getElementById('stat-lead').textContent = totalLead;
+  document.getElementById('stat-ok').textContent = totalOk;
+  document.getElementById('stat-total').textContent = filteredVehicles.length;
+  const bl = document.getElementById('badge-lag');
+  if (totalLag > 0) { bl.textContent = totalLag; bl.style.display = ''; } else bl.style.display = 'none';
+}
+
+function renderCard(v) {
+  const alert = v._alert, plate = v['vehicle_plates']||v['appointment_id'];
+  const model = v['modelo']||'—', taller = v['name_shop']||'—';
+  const asesor = (v['superadmin']||'—').split(' ')[0];
+  const isLight = v['is_light']=='1'||v['is_light']===true;
+  const upsales = parseInt(v['cantidad_upsales'])||0;
+  const dias = parseFloat(v['dias habiles desde recepcion'])||0;
+  const price = parseFloat(v['total_pending_price'])||0;
+  const estado = (v['estado']||'').toLowerCase();
+  const esperandoPartes = estado.includes('esperando') && estado.includes('part');
+  const sinConf = estado.includes('sin confirmacion');
+  const lim = getServiceLimit(v);
+  const slaInfo = getSLAInfo(v);
+  const ttData = encodeURIComponent(JSON.stringify({taller,model,plate,fleet:v['fleet']||'—',asesor:v['superadmin']||'—',dias:dias.toFixed(1),price:price>0?'$'+price.toLocaleString('es-MX',{maximumFractionDigits:0}):'—',alert,msg:v._alertMsg}));
+
+  const slaChip = v._phase==='ejecucion'||v._phase==='entrega'
+    ? `<div class="card-sla ${slaInfo.css}">⏱ ${slaInfo.label}</div>` : '';
+  const serviceLimitChip = `<span class="chip mu">${lim.label}·${lim.short}</span>`;
+  const diasChip = `<span class="chip ${alert==='lagging'?'red':alert==='leading'?'blu':'time'}">${dias.toFixed(1)}d</span>`;
+  const priceChip = price>0?`<span class="chip price">$${(price/1000).toFixed(0)}k</span>`:'';
+  const upsaleChip = upsales>1?`<span class="badge-upsale">⚠upsale</span>`:'';
+  const lightBadge = isLight?`<span class="badge-light">L</span>`:'';
+  const partesBadge = esperandoPartes?`<span class="badge-partes">partes</span>`:'';
+  const sinConfBadge = sinConf?`<span title="Taller no ha confirmado salida" style="font-size:.85rem;cursor:help;" >⚠️</span>`:'';
+  const msg = v._alertMsg?`<div class="card-msg ${alert==='leading'?'blu':''}">${v._alertMsg}</div>`:'';
+
+  return `<div class="card ${alert}"
+    onclick="openModal('${v['appointment_id']}')"
+    onmouseenter="showTooltip(event,'${ttData}')"
+    onmouseleave="hideTooltip()">
+    <div class="card-top">
+      <div class="card-dot ${alert==='lagging'?'red':alert==='leading'?'blu':'ok'}"></div>
+      <div class="card-plate">${plate}</div>
+      <div class="card-badges">${lightBadge}${partesBadge}${sinConfBadge}</div>
+    </div>
+    <div class="card-model">${model} · ${asesor}</div>
+    <div class="card-taller">${taller}</div>
+    <div class="card-chips">${diasChip}${serviceLimitChip}${priceChip}${upsaleChip}</div>
+    ${slaChip}
+    ${msg}
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TOOLTIP
+// ═══════════════════════════════════════════════════════════════
+function showTooltip(e, dataStr) {
+  const d = JSON.parse(decodeURIComponent(dataStr));
+  const tt = document.getElementById('tooltip');
+  const alert_row = d.msg ? `<div style="margin-top:.3rem;font-size:.62rem;color:${d.alert==='lagging'?'var(--red)':'var(--blu)'};">${d.msg}</div>` : '';
+  tt.innerHTML = [['Taller',d.taller],['Modelo',d.model],['Placa',d.plate],['Flota',d.fleet],['Asesor',d.asesor],['Días',d.dias+'d'],d.price!=='—'?['Valor',d.price]:null]
+    .filter(Boolean).map(([l,v])=>`<div class="tt-row"><span class="tt-label">${l}</span><span class="tt-val">${v}</span></div>`).join('') + alert_row;
+  tt.classList.add('show');
+  posTooltip(e);
+}
+function posTooltip(e) {
+  const tt = document.getElementById('tooltip');
+  tt.style.left = Math.min(e.clientX+14,window.innerWidth-260)+'px';
+  tt.style.top = Math.min(e.clientY+14,window.innerHeight-200)+'px';
+}
+document.addEventListener('mousemove',e=>{const tt=document.getElementById('tooltip');if(tt.classList.contains('show'))posTooltip(e);});
+function hideTooltip(){document.getElementById('tooltip').classList.remove('show');}
+
+// ═══════════════════════════════════════════════════════════════
+// MODAL APPOINTMENT
+// ═══════════════════════════════════════════════════════════════
+function openModal(apptId) {
+  const v = allVehicles.find(v=>String(v['appointment_id'])===String(apptId));
+  if (!v) return;
+  currentModal = v;
+  const alert=v._alert,plate=v['vehicle_plates']||apptId,taller=v['name_shop']||'—',modelo=v['modelo']||'—',asesor=v['superadmin']||'—',fleet=v['fleet']||'—',servicio=v['SERVICIO']||'—';
+  const dias=parseFloat(v['dias habiles desde recepcion'])||0,diasAp=parseFloat(v['dias habiles desde aprobacion'])||0,price=parseFloat(v['total_pending_price'])||0;
+  const isLight=v['is_light']=='1',upsales=parseInt(v['cantidad_upsales'])||0;
+  const lim=getServiceLimit(v),slaInfo=getSLAInfo(v);
+
+  document.getElementById('m-plate').textContent = plate+(isLight?' 💡':'');
+  document.getElementById('m-sub').textContent = `${modelo} · ${taller} · ${fleet}`;
+  document.getElementById('m-dot').className = 'modal-dot '+(alert==='lagging'?'red':alert==='leading'?'blu':'ok');
+
+  // Alert + SLA box
+  let aHtml = '';
+  if (alert!=='ok'&&v._alertMsg) aHtml = `<div class="modal-alert-box ${alert==='leading'?'blu':'red'}"><div class="modal-alert-title ${alert==='leading'?'blu':'red'}">${alert==='leading'?'↗ LEADING':'⚠ LAGGING'}</div><div class="modal-alert-msg">${v._alertMsg}</div></div>`;
+  aHtml += `<div style="background:var(--s2);border:1px solid var(--b);border-radius:8px;padding:.5rem .7rem;margin-bottom:.6rem;display:flex;justify-content:space-between;align-items:center;">
+    <div><div style="font-size:.58rem;color:var(--mu);text-transform:uppercase;font-weight:700;letter-spacing:.6px;">Límite por tipo: ${lim.label}</div>
+    <div style="font-size:.8rem;font-weight:700;">${dias.toFixed(1)}d de ${lim.max}d máx — <span style="color:${slaInfo.css==='expired'?'var(--red)':slaInfo.css==='urgent'?'var(--yel)':'var(--grn)'}">${slaInfo.label}</span></div></div>
+  </div>`;
+  document.getElementById('m-alert-box').innerHTML = aHtml;
+
+  const slaFmt = v['sla_entrega'] ? new Date(v['sla_entrega']).toLocaleString('es-MX') : '—';
+  const recepFmt = v['reception_time'] ? new Date(v['reception_time']).toLocaleString('es-MX') : '—';
+  const convFmt = v['quote_max_converted_at'] ? new Date(v['quote_max_converted_at']).toLocaleString('es-MX') : '—';
+  const fields = [
+    ['Fase', FASE_LABELS[v._phase]||v._phase],['Asesor',asesor],['Servicio',servicio],['Flota',fleet],['Taller',taller],
+    ['Recepción',recepFmt],['Días en taller',dias.toFixed(1)+'d hábiles'],['Días desde aprobación',diasAp>0?diasAp.toFixed(1)+'d':'—'],
+    ['Fecha límite SLA',slaFmt],['Tiempo restante',slaInfo.label],['Última cotización',convFmt],
+    ['Valor pendiente',price>0?'$'+price.toLocaleString('es-MX',{maximumFractionDigits:0}):'—'],
+    ['Upsales',upsales>1?'⚠ '+upsales+' (revisar diagnóstico)':upsales.toString()],
+    ['Estado',v['estado']||'—'],
+  ];
+  document.getElementById('m-grid').innerHTML = fields.map(([l,val])=>`<div class="modal-field"><div class="mf-label">${l}</div><div class="mf-val">${val}</div></div>`).join('');
+
+  // Populate asesor select
+  const asesores = [...new Set(allVehicles.map(v=>v['superadmin']).filter(Boolean))].sort();
+  const tas = document.getElementById('m-task-assignee');
+  tas.innerHTML = '<option value="">Sin asignar</option>' + asesores.map(a=>`<option value="${a}" ${a===asesor?'selected':''}>${a}</option>`).join('') + '<option value="Torre de Partes">🔩 Torre de Partes</option>';
+
+  renderNotes(apptId);
+
+  // Suggestions
+  const suggs = getTaskSuggestions(v);
+  document.getElementById('m-suggestions').innerHTML = suggs.map(s=>
+    `<button class="task-suggestion-btn" onclick="createTaskFromSuggestion('${String(v['appointment_id'])}','${s.title.replace(/'/g,"\\'")}','${s.assignee.replace(/'/g,"\\'")}','${s.priority}')"><span>+</span> ${s.title} → <strong>${s.assignee||'Sin asignar'}</strong></button>`
+  ).join('') + (v._phase==='entrega'||v._phase==='aprobacion'?`<button class="export-btn" onclick="exportVehicle('${apptId}')">⬇ Exportar datos (Excel)</button>`:'');
+
+  document.getElementById('modal').classList.add('show');
+}
+function closeModal(){document.getElementById('modal').classList.remove('show');currentModal=null;}
+document.getElementById('modal').addEventListener('click',e=>{if(e.target===document.getElementById('modal'))closeModal();});
+
+function getTaskSuggestions(v) {
+  const t=[], a=v['superadmin']||'';
+  if (v._alert==='lagging') {
+    if (v._phase==='diagnostico') t.push({title:`Presionar taller para iniciar diagnóstico (${v['vehicle_plates']})`,assignee:a,priority:'alta'});
+    if (v._phase==='cotizacion') t.push({title:`Urgente: generar cotización (${v['vehicle_plates']})`,assignee:a,priority:'alta'});
+    if (v._phase==='aprobacion') t.push({title:`Seguimiento al cliente para aprobación (${v['vehicle_plates']})`,assignee:a,priority:'alta'});
+    if (v._phase==='ejecucion') t.push({title:`SLA vencido: revisar avance de trabajos (${v['vehicle_plates']})`,assignee:a,priority:'alta'});
+    if (v._phase==='entrega') {
+      const sinConfCheck = (v['estado']||'').toLowerCase().includes('sin confirmacion');
+      if (sinConfCheck) {
+        t.push({title:`Escribir a ${(v['name_shop']||'taller').slice(0,20)}: confirmar salida de ${v['vehicle_plates']}`,assignee:a,priority:'alta'});
+      } else {
+        t.push({title:`Coordinar recolección con cliente (${v['vehicle_plates']})`,assignee:a,priority:'media'});
+      }
+    }
+  } else if (v._alert==='leading') {
+    if (v._phase==='cotizacion') t.push({title:`Priorizar cotización antes de vencer SLA (${v['vehicle_plates']})`,assignee:a,priority:'media'});
+    if (v._phase==='aprobacion') t.push({title:`Dar seguimiento a aprobación pendiente (${v['vehicle_plates']})`,assignee:a,priority:'media'});
+    if (v._phase==='ejecucion') t.push({title:`Verificar avance de trabajos (${v['vehicle_plates']})`,assignee:a,priority:'media'});
+  }
+  return t;
+}
+
+function createTaskFromModal() {
+  if (!currentModal) return;
+  const title = document.getElementById('m-task-title').value.trim();
+  if (!title) return;
+  createTaskObj({title, assignee:document.getElementById('m-task-assignee').value, priority:document.getElementById('m-task-pri').value, plate:currentModal['vehicle_plates']||currentModal['appointment_id']});
+  document.getElementById('m-task-title').value = '';
+  showToast('Tarea creada');
+}
+function createTaskFromSuggestion(apptId, title, assignee, priority) {
+  const v = allVehicles.find(v=>String(v['appointment_id'])===String(apptId));
+  createTaskObj({title, assignee, priority, plate:v?v['vehicle_plates']||apptId:apptId});
+  showToast('Tarea creada');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// NOTES
+// ═══════════════════════════════════════════════════════════════
+function getNotes(id){return JSON.parse(localStorage.getItem('notes_'+id)||'[]');}
+function saveNote(id,text){const n=getNotes(id);n.push({text,user:CFG.user,ts:new Date().toISOString()});localStorage.setItem('notes_'+id,JSON.stringify(n));}
+function renderNotes(id) {
+  const notes=getNotes(id),el=document.getElementById('m-notes');
+  el.innerHTML=notes.length?notes.map(n=>`<div class="note-item"><div class="note-meta">${n.user} · ${new Date(n.ts).toLocaleString('es-MX')}</div><div>${n.text}</div></div>`).join(''):'<div style="color:var(--mu);font-size:.72rem;padding:.3rem 0">Sin notas aún.</div>';
+}
+function addNote(){if(!currentModal)return;const t=document.getElementById('m-note-input').value.trim();if(!t)return;saveNote(currentModal['appointment_id'],t);document.getElementById('m-note-input').value='';renderNotes(currentModal['appointment_id']);showToast('Nota guardada');}
+
+// ═══════════════════════════════════════════════════════════════
+// ASESORES
+// ═══════════════════════════════════════════════════════════════
+function renderAsesores() {
+  const excludedFases = msState.fase;
+  const byAsesor = {};
+  filteredVehicles.filter(v=>!excludedFases.has(v._phase)).forEach(v=>{
+    const a=v['superadmin']||'Sin asignar';
+    if(!byAsesor[a])byAsesor[a]=[];
+    byAsesor[a].push(v);
+  });
+  const urgOrd={lagging:0,leading:1,ok:2};
+  const html=Object.entries(byAsesor).sort((a,b)=>b[1].length-a[1].length).map(([name,vehicles])=>{
+    vehicles.sort((a,b)=>(urgOrd[a._alert]??2)-(urgOrd[b._alert]??2));
+    const lag=vehicles.filter(v=>v._alert==='lagging').length,lead=vehicles.filter(v=>v._alert==='leading').length,ok=vehicles.filter(v=>v._alert==='ok').length;
+    const inits=name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const MAX_SHOW=5;
+    const shown=vehicles.slice(0,MAX_SHOW).map(v=>`<div class="asesor-veh" onclick="openModal('${v['appointment_id']}')"><div class="dot ${v._alert}"></div><div class="plate">${v['vehicle_plates']||v['appointment_id']}</div><div class="phase">${FASE_LABELS[v._phase]||v._phase}</div></div>`).join('');
+    const more=vehicles.length>MAX_SHOW?`<button class="ver-todos-btn" onclick="openVTM('${name.replace(/'/g,"\\'")}')">Ver todos los ${vehicles.length} vehículos →</button>`:'';
+    return `<div class="asesor-card">
+      <div class="asesor-head"><div class="asesor-av">${inits}</div><div><div class="asesor-name">${name}</div><div class="asesor-total">${vehicles.length} unidades</div></div></div>
+      <div class="asesor-stats">
+        <div class="asesor-stat"><div class="n red">${lag}</div><div class="l">Lagging</div></div>
+        <div class="asesor-stat"><div class="n blu">${lead}</div><div class="l">Leading</div></div>
+        <div class="asesor-stat"><div class="n grn">${ok}</div><div class="l">Ok</div></div>
+      </div>
+      <div class="asesor-list">${shown}${more}</div>
+      <button class="reassign-btn" onclick="openRm('${name.replace(/'/g,"\\'")}')">↔ Reasignar</button>
+    </div>`;
+  }).join('');
+  document.getElementById('asesores-grid').innerHTML=html||'<div class="no-data">Sin datos</div>';
+}
+
+// VER TODOS MODAL
+function openVTM(asesorName) {
+  const vehicles=filteredVehicles.filter(v=>v['superadmin']===asesorName);
+  const urgOrd={lagging:0,leading:1,ok:2};
+  vehicles.sort((a,b)=>(urgOrd[a._alert]??2)-(urgOrd[b._alert]??2));
+  document.getElementById('vtm-title').textContent=`Vehículos de ${asesorName} (${vehicles.length})`;
+  const headers=['Placa','Taller','Estado','Días','# Cotiz.','SLA Fecha','SLA Días/Tipo'];
+  const rows=vehicles.map(v=>{
+    const lim=getServiceLimit(v),slaInfo=getSLAInfo(v),dias=parseFloat(v['dias habiles desde recepcion'])||0;
+    const slaFmt=v['sla_entrega']?new Date(v['sla_entrega']).toLocaleDateString('es-MX'):'—';
+    const slaCSS=slaInfo.css==='expired'?'red':slaInfo.css==='urgent'?'yel':'grn';
+    const diasSlaCSS=slaInfo.css==='expired'?'red':slaInfo.css==='urgent'?'yel':'grn';
+    return `<tr>
+      <td class="plate" onclick="openModal('${v['appointment_id']}'); closeVTM()">${v['vehicle_plates']||v['appointment_id']}</td>
+      <td>${(v['name_shop']||'—').slice(0,20)}</td>
+      <td><span class="status-pill ${v._alert==='lagging'?'red':v._alert==='leading'?'yel':'grn'}">${v._alert}</span></td>
+      <td>${dias.toFixed(1)}d</td>
+      <td>${v['cantidad_upsales']||0}</td>
+      <td><span class="status-pill ${slaCSS}">${slaFmt}</span></td>
+      <td><span class="status-pill ${diasSlaCSS}">${slaInfo.label} (${lim.label})</span></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('vtm-table').innerHTML=`<thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows}</tbody>`;
+  document.getElementById('vertodos-modal').classList.add('show');
+}
+function closeVTM(){document.getElementById('vertodos-modal').classList.remove('show');}
+document.getElementById('vertodos-modal').addEventListener('click',e=>{if(e.target===document.getElementById('vertodos-modal'))closeVTM();});
+
+// REASSIGN
+function openRm(asesor){
+  reassignTarget=asesor;
+  document.getElementById('rm-sub').textContent=`Reasignar vehículos de ${asesor}`;
+  const asesores=[...new Set(allVehicles.map(v=>v['superadmin']).filter(Boolean))].sort();
+  document.getElementById('rm-list').innerHTML=asesores.filter(a=>a!==asesor).map(a=>`<div class="rm-opt" onclick="doReassign('${a}')"><div class="rm-av">${a.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</div>${a}</div>`).join('');
+  document.getElementById('rm').classList.add('show');
+}
+function doReassign(to){allVehicles.forEach(v=>{if(v['superadmin']===reassignTarget)v['superadmin']=to;});filteredVehicles.forEach(v=>{if(v['superadmin']===reassignTarget)v['superadmin']=to;});closeRm();renderAsesores();buildFilterOptions();showToast(`Reasignado a ${to} (local)`);}
+function closeRm(){document.getElementById('rm').classList.remove('show');}
+
+// ═══════════════════════════════════════════════════════════════
+// COTIZACIONES
+// ═══════════════════════════════════════════════════════════════
+function renderCotizaciones() {
+  const cotiz=filteredVehicles.filter(v=>v._phase==='aprobacion'||v._phase==='cotizacion');
+  const byAsesor={};
+  cotiz.forEach(v=>{const a=v['superadmin']||'Sin asignar';if(!byAsesor[a])byAsesor[a]=[];byAsesor[a].push(v);});
+  const html=Object.entries(byAsesor).sort((a,b)=>b[1].length-a[1].length).map(([name,vs])=>{
+    vs.sort((a,b)=>(parseFloat(b['dias habiles desde recepcion'])||0)-(parseFloat(a['dias habiles desde recepcion'])||0));
+    const rows=vs.map(v=>{
+      const dias=parseFloat(v['dias habiles desde recepcion'])||0,price=parseFloat(v['total_pending_price'])||0;
+      const diasCss=dias>2?'red':dias>1?'yel':'grn';
+      return `<tr>
+        <td onclick="openModal('${v['appointment_id']}')" style="cursor:pointer;color:var(--ac);font-family:var(--mono);font-weight:700;">${v['vehicle_plates']||v['appointment_id']}</td>
+        <td>${FASE_LABELS[v._phase]||v._phase}</td>
+        <td><span class="status-pill ${diasCss}">${dias.toFixed(1)}d</span></td>
+        <td>${price>0?'$'+price.toLocaleString('es-MX',{maximumFractionDigits:0}):'—'}</td>
+        <td style="color:var(--mu2);">—</td>
+        <td>${v['name_shop']||'—').slice(0,18)}</td>
+      </tr>`;
+    }).join('');
+    return `<div style="margin-bottom:1rem;">
+      <div class="cotiz-group-header">${name} <span style="color:var(--mu);">· ${vs.length} cotizaciones</span></div>
+      <table class="cotiz-table">
+        <thead><tr><th>Placa</th><th>Fase</th><th>Días pendiente</th><th>Valor</th><th># Trabajos</th><th>Taller</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  }).join('');
+  document.getElementById('cotiz-content').innerHTML=html||'<div class="no-data">Sin cotizaciones pendientes</div>';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ESPERANDO PARTES
+// ═══════════════════════════════════════════════════════════════
+function renderPartesBadge() {
+  const partes=allVehicles.filter(v=>(v['estado']||'').toLowerCase().includes('esperando'));
+  const b=document.getElementById('badge-partes');
+  if(partes.length>0){b.textContent=partes.length;b.style.display='';}else b.style.display='none';
+}
+function getPartesData(apptId){return JSON.parse(localStorage.getItem('partes_'+apptId)||'{"status":"","log":[]}')}
+function savePartesData(apptId,data){localStorage.setItem('partes_'+apptId,JSON.stringify(data));}
+
+function renderPartes() {
+  const partes=allVehicles.filter(v=>(v['estado']||'').toLowerCase().includes('esperando'));
+  partes.sort((a,b)=>(parseFloat(b['dias habiles desde recepcion'])||0)-(parseFloat(a['dias habiles desde recepcion'])||0));
+  document.getElementById('partes-grid').innerHTML=partes.length?partes.map(v=>{
+    const dias=parseFloat(v['dias habiles desde recepcion'])||0;
+    const pd=getPartesData(v['appointment_id']);
+    const diasCss=dias>5?'red':dias>2?'yel':'grn';
+    const log=pd.log.slice(-2).map(l=>`${new Date(l.ts).toLocaleDateString('es-MX')}: ${l.text}`).join(' | ');
+    return `<div class="partes-card ${dias>5?'urgente':''}">
+      <div class="partes-head">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div class="partes-plate">${v['vehicle_plates']||v['appointment_id']}</div>
+          <span class="partes-dias ${diasCss}">${dias.toFixed(1)}d esperando</span>
+        </div>
+        <div class="partes-info">${v['modelo']||'—'} · ${(v['name_shop']||'—').slice(0,20)} · ${(v['superadmin']||'—').split(' ')[0]}</div>
+      </div>
+      <div class="partes-body">
+        <select class="partes-status-sel" id="ps-${v['appointment_id']}">
+          <option value="">Seleccionar estado...</option>
+          ${['Partes puestas por taller','En consecución','Solicitada','Entregada'].map(s=>`<option value="${s}" ${pd.status===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+        <textarea class="partes-note-input" id="pn-${v['appointment_id']}" placeholder="Comentario..."></textarea>
+        <div style="display:flex;gap:.4rem;margin-top:.3rem;align-items:center;">
+          <button class="partes-save-btn" onclick="savePartes('${v['appointment_id']}')">Guardar</button>
+          <button style="background:none;border:1px solid var(--b2);border-radius:6px;padding:.22rem .5rem;font-size:.62rem;color:var(--mu2);cursor:pointer;" onclick="createTaskObj({title:'Partes: ${v['vehicle_plates']||v['appointment_id']} — seguimiento',assignee:'Torre de Partes',priority:'alta',plate:'${v['vehicle_plates']||''}'});showToast('Tarea creada')">+ Tarea</button>
+        </div>
+        ${log?`<div class="partes-log">${log}</div>`:''}
+      </div>
+    </div>`;
+  }).join(''):'<div class="no-data">No hay vehículos esperando partes</div>';
+}
+function savePartes(apptId) {
+  const status=document.getElementById('ps-'+apptId)?.value||'';
+  const note=document.getElementById('pn-'+apptId)?.value.trim()||'';
+  const pd=getPartesData(apptId);
+  pd.status=status;
+  if(note){pd.log.push({ts:new Date().toISOString(),text:note,user:CFG.user});}
+  savePartesData(apptId,pd);
+  if(document.getElementById('pn-'+apptId))document.getElementById('pn-'+apptId).value='';
+  showToast('Guardado');
+  renderPartes();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MÉTRICAS
+// ═══════════════════════════════════════════════════════════════
+function renderMetricas() {
+  const vehicles=filteredVehicles;
+  if(!vehicles.length){document.getElementById('metricas-content').innerHTML='<div class="no-data">Sin datos</div>';return;}
+  const lag=vehicles.filter(v=>v._alert==='lagging').length;
+  const lead=vehicles.filter(v=>v._alert==='leading').length;
+  const byTaller={},byAsesor={},byFlota={},byFase={};
+  vehicles.forEach(v=>{
+    const t=v['name_shop']||'?',a=v['superadmin']||'?',f=v['fleet']||'?',p=v._phase||'?';
+    if(!byTaller[t])byTaller[t]={lag:0,lead:0,total:0};
+    if(!byAsesor[a])byAsesor[a]={lag:0,lead:0,total:0};
+    if(!byFlota[f])byFlota[f]={lag:0,lead:0,total:0};
+    if(!byFase[p])byFase[p]={lag:0,lead:0,total:0};
+    byTaller[t].total++;byAsesor[a].total++;byFlota[f].total++;byFase[p].total++;
+    if(v._alert==='lagging'){byTaller[t].lag++;byAsesor[a].lag++;byFlota[f].lag++;byFase[p].lag++;}
+    if(v._alert==='leading'){byTaller[t].lead++;byAsesor[a].lead++;byFlota[f].lead++;byFase[p].lead++;}
+  });
+
+  function rankList(obj,label){
+    const sorted=Object.entries(obj).sort((a,b)=>b[1].lag-a[1].lag).slice(0,6);
+    const maxLag=sorted[0]?.[1].lag||1;
+    return `<div class="metric-card"><div class="metric-title">${label}</div>${sorted.map(([name,d],i)=>{
+      const pct=d.lag/maxLag;
+      const css=pct>0.6?'red':pct>0.3?'yel':'grn';
+      return `<div class="metric-item">
+        <div class="metric-rank">${i+1}</div>
+        <div class="metric-name" title="${name}">${name.slice(0,22)}</div>
+        <div class="metric-bar-wrap"><div class="metric-bar ${css}" style="width:${Math.round(pct*100)}%"></div></div>
+        <div class="metric-val" style="color:var(--red)">${d.lag}🔴</div>
+      </div>`;
+    }).join('')}</div>`;
+  }
+
+  const kpis=`<div class="metrics-kpi-row">
+    <div class="kpi-card"><div class="metric-bignum red">${lag}</div><div class="metric-biglabel">Lagging total</div></div>
+    <div class="kpi-card"><div class="metric-bignum yel">${lead}</div><div class="metric-biglabel">Leading total</div></div>
+    <div class="kpi-card"><div class="metric-bignum grn">${vehicles.length-lag-lead}</div><div class="metric-biglabel">En tiempo</div></div>
+    <div class="kpi-card"><div class="metric-bignum" style="color:var(--ac)">${Math.round((lag/Math.max(vehicles.length,1))*100)}%</div><div class="metric-biglabel">% Lagging</div></div>
+    <div class="kpi-card"><div class="metric-bignum" style="color:var(--mu2)">${allVehicles.filter(v=>(v['estado']||'').toLowerCase().includes('esperando')).length}</div><div class="metric-biglabel">Esp. Partes</div></div>
+  </div>`;
+
+  document.getElementById('metricas-content').innerHTML = kpis + `<div class="metrics-grid">
+    ${rankList(byTaller,'🏭 Talleres con más lagging')}
+    ${rankList(byAsesor,'👤 Asesores con más lagging')}
+    ${rankList(byFlota,'🚗 Flotas con más lagging')}
+    ${rankList(byFase,'📋 Fases con más lagging')}
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TAREAS
+// ═══════════════════════════════════════════════════════════════
+function getTasks(){return JSON.parse(localStorage.getItem('torre_tasks')||'[]');}
+function saveTasks(t){localStorage.setItem('torre_tasks',JSON.stringify(t));renderTasks();renderTasksBadge();}
+function createTaskObj({title,assignee,priority,plate}){const t=getTasks();t.push({id:Date.now(),title,assignee:assignee||'',priority:priority||'media',plate:plate||'',done:false,ts:new Date().toISOString()});saveTasks(t);}
+function toggleTask(id){saveTasks(getTasks().map(t=>t.id===id?{...t,done:!t.done}:t));}
+function deleteTask(id){saveTasks(getTasks().filter(t=>t.id!==id));}
+function renderTasksBadge(){const p=getTasks().filter(t=>!t.done).length;const b=document.getElementById('badge-tasks');if(p>0){b.textContent=p;b.style.display='';}else b.style.display='none';}
+
+let currentTaskFilter='all';
+function filterTasks(f,btn){
+  currentTaskFilter=f;
+  document.querySelectorAll('#view-tareas .filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTasks();
+}
+
+function renderTasks() {
+  const af=document.getElementById('tasks-asesor-filter');
+  const asesores=[...new Set(allVehicles.map(v=>v['superadmin']).filter(Boolean))].sort();
+  if(af){const cur=af.value;af.innerHTML='<option value="">Todos los asesores</option>'+asesores.map(a=>`<option value="${a}" ${a===cur?'selected':''}>${a}</option>`).join('')+' <option value="Torre de Partes">Torre de Partes</option>';}
+  const asesorF=af?af.value:'';
+  let tasks=getTasks();
+  if(currentTaskFilter==='pending')tasks=tasks.filter(t=>!t.done);
+  if(currentTaskFilter==='done')tasks=tasks.filter(t=>t.done);
+  if(asesorF)tasks=tasks.filter(t=>t.assignee===asesorF);
+  tasks.sort((a,b)=>({alta:0,media:1,baja:2}[a.priority]||1)-({alta:0,media:1,baja:2}[b.priority]||1));
+  document.getElementById('tasks-list').innerHTML=tasks.length?tasks.map(t=>`
+    <div class="task-item ${t.done?'done':''}">
+      <div class="task-check ${t.done?'done':''}" onclick="toggleTask(${t.id})">${t.done?'✓':''}</div>
+      <div class="task-content">
+        <div class="task-title">${t.title}</div>
+        <div class="task-meta">${t.assignee?`<span class="assignee">@${t.assignee.split(' ')[0]}</span> · `:''}${t.plate?`<span class="plate-ref">${t.plate}</span> · `:''}<span>${new Date(t.ts).toLocaleDateString('es-MX')}</span></div>
+      </div>
+      <span class="task-pri ${t.priority}">${t.priority}</span>
+      <button class="task-del" onclick="deleteTask(${t.id})">✕</button>
+    </div>`).join(''):'<div class="no-data">Sin tareas en esta vista.</div>';
+}
+function openNtm(){document.getElementById('ntm').classList.add('show');}
+function closeNtm(){document.getElementById('ntm').classList.remove('show');}
+function createTask(){const t=document.getElementById('ntm-title').value.trim();if(!t)return;createTaskObj({title:t,assignee:document.getElementById('ntm-assignee').value,priority:document.getElementById('ntm-priority').value,plate:document.getElementById('ntm-plate').value.trim()});closeNtm();showToast('Tarea creada');}
+document.getElementById('ntm').addEventListener('click',e=>{if(e.target===document.getElementById('ntm'))closeNtm();});
+document.getElementById('rm').addEventListener('click',e=>{if(e.target===document.getElementById('rm'))closeRm();});
+
+// ═══════════════════════════════════════════════════════════════
+// EXPORTS
+// ═══════════════════════════════════════════════════════════════
+const EXPORT_COLS = ['appointment_id','vehicle_plates','modelo','name_shop','fleet','superadmin','SERVICIO','estado','Estado SLA','reception_time','sla_entrega','quote_max_converted_at','dias habiles desde recepcion','dias habiles desde aprobacion','total_pending_price','cantidad_upsales','is_light'];
+const EXPORT_HEADERS = ['ID','Placa','Modelo','Taller','Flota','Asesor','Servicio','Estado','Estado SLA','Recepción','Fecha SLA','Última Cotiz.','Días en Taller','Días desde Aprobación','Valor Pendiente','Upsales','Es Light'];
+
+function exportPhase(phase) {
+  const vehicles = filteredVehicles.filter(v => v._phase === phase);
+  if (!vehicles.length) { showToast('Sin datos en esta fase'); return; }
+  const phaseLabel = PHASE_LABELS[phase] || phase;
+  const rows = [EXPORT_HEADERS, ...vehicles.map(v => {
+    const lim = getServiceLimit(v), slaInfo = getSLAInfo(v);
+    return [...EXPORT_COLS.map(c => v[c]||''), lim.label, slaInfo.label];
+  })];
+  // Add SLA cols to header
+  rows[0] = [...EXPORT_HEADERS, 'Tipo Servicio', 'SLA Estado'];
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  // Style header row width
+  ws['!cols'] = EXPORT_HEADERS.map((_,i) => ({wch: i<2?12:i<6?20:15}));
+  XLSX.utils.book_append_sheet(wb, ws, phaseLabel.replace(/[^\w]/g,'_').slice(0,31));
+  XLSX.writeFile(wb, `${phaseLabel.replace(/[^\w]/g,'_')}_${new Date().toISOString().slice(0,10)}.xlsx`);
+  showToast(`${vehicles.length} vehículos exportados`);
+}
+
+function exportAll() {
+  const vehicles = filteredVehicles;
+  if (!vehicles.length) { showToast('Sin datos'); return; }
+  const wb = XLSX.utils.book_new();
+  // One sheet per phase
+  const byPhase = {};
+  vehicles.forEach(v => { if(!byPhase[v._phase]) byPhase[v._phase]=[]; byPhase[v._phase].push(v); });
+  // Also a summary sheet
+  const summaryRows = [['Fase','Total','Lagging','Leading','Ok']];
+  PHASES.forEach(p => {
+    const vs = byPhase[p] || [];
+    if (vs.length) summaryRows.push([PHASE_LABELS[p]||p, vs.length, vs.filter(v=>v._alert==='lagging').length, vs.filter(v=>v._alert==='leading').length, vs.filter(v=>v._alert==='ok').length]);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryRows), 'Resumen');
+  // All vehicles sheet
+  const allRows = [['Fase',...EXPORT_HEADERS,'Tipo Servicio','SLA Estado']];
+  vehicles.forEach(v => {
+    const lim=getServiceLimit(v),slaInfo=getSLAInfo(v);
+    allRows.push([PHASE_LABELS[v._phase]||v._phase,...EXPORT_COLS.map(c=>v[c]||''),lim.label,slaInfo.label]);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(allRows), 'Todos los vehículos');
+  XLSX.writeFile(wb, `Torre_Central_${new Date().toISOString().slice(0,10)}.xlsx`);
+  showToast(`${vehicles.length} vehículos exportados`);
+}
+
+function exportVehicle(apptId) {
+  const v=allVehicles.find(v=>String(v['appointment_id'])===String(apptId));
+  if(!v)return;
+  const lim=getServiceLimit(v),slaInfo=getSLAInfo(v);
+  const data=[['Campo','Valor'],['Appointment ID',v['appointment_id']],['Placa',v['vehicle_plates']],['Modelo',v['modelo']],['Taller',v['name_shop']],['Flota',v['fleet']],['Asesor',v['superadmin']],['Servicio',v['SERVICIO']],['Fase',FASE_LABELS[v._phase]||v._phase],['Estado',v['estado']],['Recepción',v['reception_time']],['Fecha límite SLA',v['sla_entrega']],['Tiempo restante',slaInfo.label],['Límite por tipo',lim.label+' ('+lim.max+'d)'],['Días en taller',v['dias habiles desde recepcion']],['Días desde aprobación',v['dias habiles desde aprobacion']],['Última cotización',v['quote_max_converted_at']],['Valor pendiente',v['total_pending_price']],['Estado SLA',v['Estado SLA']],['Upsales',v['cantidad_upsales']],['Es Light',v['is_light']]];
+  const wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(data);
+  XLSX.utils.book_append_sheet(wb,ws,'Datos');
+  XLSX.writeFile(wb,`${v['vehicle_plates']||apptId}_${new Date().toISOString().slice(0,10)}.xlsx`);
+} (sin API, 100% local)
+// ═══════════════════════════════════════════════════════════════
+function generateRecos() {
+  const btn=document.getElementById('reco-btn');
+  const list=document.getElementById('reco-list');
+  const topAct=document.getElementById('reco-top-actions');
+
+  btn.disabled=true; btn.textContent='Analizando...';
+  list.innerHTML=''; topAct.style.display='none';
+
+  recoItems = [];
+
+  allVehicles.forEach(v => {
+    const plate = v['vehicle_plates']||v['appointment_id'];
+    const asesor = v['superadmin']||'Sin asignar';
+    const taller = (v['name_shop']||'?').slice(0,25);
+    const fase = v._phase;
+    const sla = v['Estado SLA']||'';
+    const estado = (v['estado']||'').toLowerCase();
+    const dias = parseFloat(v['dias habiles desde recepcion'])||0;
+    const diasAp = parseFloat(v['dias habiles desde aprobacion'])||0;
+    const lim = getServiceLimit(v);
+    const slaInfo = getSLAInfo(v);
+    const upsales = parseInt(v['cantidad_upsales'])||0;
+    const price = parseFloat(v['total_pending_price'])||0;
+    const priceStr = price>0?'$'+price.toLocaleString('es-MX',{maximumFractionDigits:0}):'';
+    const primerTrabIni = v['first_job_start_date'];
+    const esperandoPartes = estado.includes('esperando');
+    const pct = parseFloat(v['pct_sla_quote_teoric_expiration'])||0;
+
+    const add = (alerta, accion, prioridad='media') => recoItems.push({
+      plate, asesor, taller, fase, alerta, accion, prioridad,
+      placa: plate
+    });
+
+    // ── DIAGNÓSTICO ────────────────────────────────────────────
+    if (fase === 'diagnostico') {
+      if (sla.includes('más de 30')) {
+        add('lagging', `Presionar a ${taller} para iniciar la revisión del vehículo ${plate}. Han pasado más de 30 minutos desde su llegada sin que el taller haya comenzado la inspección.`, 'alta');
+      } else if (sla.includes('menos de 30')) {
+        add('leading', `Verificar en los próximos minutos que ${taller} inicie la revisión de ${plate}. El vehículo llegó hace menos de 30 minutos.`, 'baja');
+      }
+      if (upsales > 1) {
+        add('leading', `${plate} tiene ${upsales} cotizaciones — posible diagnóstico incompleto en ${taller}. Revisar si el técnico identificó todos los trabajos antes de generar la primera cotización.`, 'media');
+      }
+    }
+
+    // ── COTIZACIÓN ─────────────────────────────────────────────
+    if (fase === 'cotizacion') {
+      if (dias > 1) {
+        add('lagging', `SLA de cotización vencido para ${plate} en ${taller} (${dias.toFixed(1)}d). Exigir a ${asesor} que genere la cotización de inmediato${priceStr?' — valor estimado '+priceStr:''}.`, 'alta');
+      } else if (pct >= 0.8) {
+        add('lagging', `Cotización de ${plate} al ${Math.round(pct*100)}% del SLA (${dias.toFixed(1)}d). ${asesor} debe priorizar este caso hoy antes de las siguientes horas.`, 'alta');
+      } else if (pct >= 0.6) {
+        add('leading', `Cotización de ${plate} al ${Math.round(pct*100)}% del SLA. Recordar a ${asesor} que tiene poco tiempo para enviar la cotización al cliente.`, 'media');
+      }
+      if (!primerTrabIni) {
+        add('leading', `El taller ${taller} no ha iniciado siquiera la revisión de ${plate}. Sin diagnóstico no hay cotización — coordinar con asesor ${asesor} para desbloquear.`, 'media');
+      }
+      if (upsales > 1) {
+        add('leading', `${plate} tiene ${upsales} cotizaciones generadas — revisar si hay trabajos contradictorios o diagnóstico cambiante antes de enviar al cliente.`, 'baja');
+      }
+    }
+
+    // ── APROBACIÓN ─────────────────────────────────────────────
+    if (fase === 'aprobacion') {
+      if (sla.includes('Más de 4')) {
+        add('lagging', `Cliente lleva más de 4h sin aprobar cotización de ${plate}${priceStr?' ('+priceStr+')':''}. ${asesor} debe contactarlo de inmediato — riesgo de perder el slot en ${taller}.`, 'alta');
+      } else if (sla.includes('Menos de 2')) {
+        add('leading', `Cotización de ${plate} enviada hace menos de 2h. ${asesor} debe hacer seguimiento proactivo con el cliente para agilizar aprobación${priceStr?' ('+priceStr+')':''}.`, 'media');
+      }
+      if (price > 5000) {
+        add('leading', `${plate} tiene cotización de alto valor ${priceStr} pendiente de aprobación. Considerar llamada directa del KAM al cliente en lugar de solo mensajes.`, 'media');
+      }
+      if (upsales > 1) {
+        add('leading', `${plate} tiene ${upsales} cotizaciones — asegurarse de que el cliente entienda qué aprueba y qué rechaza. ${asesor} debe clarificar antes de confirmar.`, 'baja');
+      }
+    }
+
+    // ── EJECUCIÓN ──────────────────────────────────────────────
+    if (fase === 'ejecucion') {
+      // Taller no ha iniciado trabajos después de aprobación
+      if (!primerTrabIni && diasAp > 0.25) {
+        add('lagging', `Cotización aprobada pero ${taller} NO ha iniciado los trabajos de ${plate} (${diasAp.toFixed(1)}d desde aprobación). ${asesor} debe dar inicio inmediato a los trabajos — no debe pasar más de unas horas sin comenzar.`, 'alta');
+      } else if (!primerTrabIni && diasAp > 0) {
+        add('leading', `Verificar que ${taller} haya iniciado los trabajos de ${plate}. La aprobación es reciente pero no hay registro de inicio.`, 'media');
+      }
+
+      // SLA entrega vencido
+      if (sla === 'SLA Entrega Vencido') {
+        add('lagging', `SLA de entrega vencido para ${plate} en ${taller}. ${asesor} debe obtener una fecha compromiso del taller hoy mismo y comunicarla al cliente.`, 'alta');
+      }
+
+      // Límite por tipo de servicio vencido
+      if (slaInfo.css === 'expired') {
+        const exceso = (dias - lim.max).toFixed(1);
+        add('lagging', `${plate} supera el límite de ${lim.label} (${lim.max}d) por ${exceso}d adicionales en ${taller}. Escalar con el taller para fecha compromiso firme — ${asesor} debe documentar la causa del retraso.`, 'alta');
+      } else if (slaInfo.css === 'urgent') {
+        add('leading', `${plate} está por agotar el límite de ${lim.label} — ${slaInfo.label}. ${asesor} debe verificar el avance con ${taller} hoy para evitar vencimiento.`, 'media');
+      }
+
+      // SLA pronto a vencer
+      if (sla.includes('pronto a vencer más de 80')) {
+        add('leading', `SLA de entrega de ${plate} al 80%+ en ${taller}. ${asesor} debe confirmar que los trabajos estarán listos antes del vencimiento.`, 'media');
+      } else if (sla.includes('pronto a vencer más de 60')) {
+        add('leading', `SLA de entrega de ${plate} al 60%+ — empezar a monitorear de cerca el avance en ${taller}.`, 'baja');
+      }
+
+      // Esperando partes
+      if (esperandoPartes) {
+        add('lagging', `${plate} está bloqueado esperando partes en ${taller} (${dias.toFixed(1)}d en taller). Torre de Partes debe actualizar el estatus de consecución — sin partes no hay avance en trabajos.`, 'alta');
+      }
+
+      // Coche entre trabajos sin avance (estado específico)
+      if (estado === 'entre trabajos') {
+        add('leading', `${plate} está "entre trabajos" en ${taller}. Verificar que el taller esté activo en los siguientes trabajos y no haya quedado en pausa sin registro.`, 'media');
+      }
+    }
+
+    // ── ENTREGA ────────────────────────────────────────────────
+    if (fase === 'entrega') {
+      if (sinConf || estado.includes('sin confirmacion')) {
+        add('lagging', `El taller ${taller} no ha confirmado la salida de ${plate}. ${asesor} debe escribirle al taller indicando que el coche aparece pendiente de confirmación y solicitar que actualicen el estatus en el sistema.`, 'alta');
+      } else {
+        add('leading', `${plate} listo para entrega confirmada en ${taller}. ${asesor} debe coordinar con el cliente la fecha y hora de recolección.`, 'baja');
+      }
+    }
+  });
+
+  // Ordenar: alta primero, luego lagging antes que leading
+  const priOrd = {alta:0, media:1, baja:2};
+  const alertOrd = {lagging:0, leading:1};
+  recoItems.sort((a,b) => {
+    const p = (priOrd[a.prioridad]||1) - (priOrd[b.prioridad]||1);
+    if (p!==0) return p;
+    return (alertOrd[a.alerta]||1) - (alertOrd[b.alerta]||1);
+  });
+
+  btn.disabled=false; btn.textContent='✦ Generar plan';
+  renderRecoList();
+}
+
+function renderRecoList() {
+  const list=document.getElementById('reco-list');
+  const topAct=document.getElementById('reco-top-actions');
+  if(!recoItems.length){list.innerHTML='<div class="reco-empty">Sin recomendaciones. Todos los vehículos están en tiempo.</div>';return;}
+  topAct.style.display='flex';
+  const priLabel={alta:'🔴 Alta',media:'🟡 Media',baja:'🟢 Baja'};
+  list.innerHTML=recoItems.map((item,i)=>`
+    <div class="reco-item ${item.alerta}" id="reco-item-${i}">
+      <div class="reco-check" id="reco-chk-${i}" onclick="toggleRecoCheck(${i})"></div>
+      <div class="reco-content">
+        <div class="reco-plate">${item.plate}<span class="reco-badge ${item.alerta==='lagging'?'red':'blu'}">${item.alerta}</span><span style="font-size:.55rem;font-family:var(--mono);color:var(--mu);margin-left:.3rem;">${priLabel[item.prioridad]||''}</span></div>
+        <div class="reco-text">${item.accion}</div>
+        <div class="reco-asesor">→ ${item.asesor} · ${FASE_LABELS[item.fase]||item.fase} · ${item.taller}</div>
+      </div>
+      <button class="reco-send-btn" id="reco-send-${i}" onclick="sendSingleReco(${i})">+ Tarea</button>
+    </div>`).join('');
+  updateRecoCount();
+}
+
+function toggleRecoCheck(i) {
+  const chk=document.getElementById('reco-chk-'+i);
+  chk.classList.toggle('checked');
+  chk.textContent=chk.classList.contains('checked')?'✓':'';
+  updateRecoCount();
+}
+function updateRecoCount() {
+  const sel=document.querySelectorAll('[id^=reco-chk-].checked').length;
+  document.getElementById('reco-selected-count').textContent=sel>0?`${sel} seleccionada${sel>1?'s':''}`:'' ;
+}
+function selectAllRecos() {
+  recoItems.forEach((_,i)=>{const c=document.getElementById('reco-chk-'+i);if(c){c.classList.add('checked');c.textContent='✓';}});
+  updateRecoCount();
+}
+function sendSelectedRecos() {
+  let sent=0;
+  recoItems.forEach((item,i)=>{
+    const chk=document.getElementById('reco-chk-'+i);
+    if(chk?.classList.contains('checked')){
+      createTaskObj({title:`${item.placa}: ${item.accion.slice(0,80)}`,assignee:item.asesor,priority:item.alerta==='lagging'?'alta':'media',plate:item.placa});
+      const btn=document.getElementById('reco-send-'+i);
+      if(btn){btn.textContent='✓';btn.classList.add('sent');btn.disabled=true;}
+      sent++;
+    }
+  });
+  if(sent>0)showToast(`${sent} tarea${sent>1?'s':''} creada${sent>1?'s':''}`);
+}
+function sendSingleReco(i) {
+  const item=recoItems[i];
+  createTaskObj({title:`${item.placa}: ${item.accion.slice(0,80)}`,assignee:item.asesor,priority:item.alerta==='lagging'?'alta':'media',plate:item.placa});
+  const btn=document.getElementById('reco-send-'+i);
+  if(btn){btn.textContent='✓';btn.classList.add('sent');btn.disabled=true;}
+  showToast('Tarea creada');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// VIEW SWITCHING
+// ═══════════════════════════════════════════════════════════════
+const ALL_VIEWS=['torre','cotizaciones','partes','asesores','tareas','metricas','recomendaciones'];
+function showView(view) {
+  ALL_VIEWS.forEach(v=>{
+    const el=document.getElementById('view-'+v);
+    if(el)el.style.display='none';
+    const nav=document.getElementById('nav-'+v);
+    if(nav)nav.classList.remove('active');
+  });
+  const target=document.getElementById('view-'+view);
+  if(target){target.style.display=view==='torre'?'flex':'block';}
+  const nav=document.getElementById('nav-'+view);
+  if(nav)nav.classList.add('active');
+  if(view==='tareas')renderTasks();
+  if(view==='asesores')renderAsesores();
+  if(view==='partes')renderPartes();
+  if(view==='metricas')renderMetricas();
+  if(view==='cotizaciones')renderCotizaciones();
+}
+document.getElementById('view-torre').style.cssText='display:flex;flex-direction:column;height:100%;overflow:hidden;';
+
+// ═══════════════════════════════════════════════════════════════
+// TIMER & TOAST
+// ═══════════════════════════════════════════════════════════════
+function startTimer(){
+  timerInterval=setInterval(()=>{
+    nextRefresh--;
+    if(nextRefresh<=0){loadData();nextRefresh=300;}
+    const m=Math.floor(nextRefresh/60),s=nextRefresh%60;
+    document.getElementById('timer-txt').textContent=`↻ ${m}:${s.toString().padStart(2,'0')}`;
+  },1000);
+}
+function showToast(msg){
+  const t=document.createElement('div');
+  t.style.cssText='position:fixed;bottom:1rem;right:1rem;background:var(--s3);border:1px solid var(--b2);border-radius:8px;padding:.45rem .9rem;font-size:.73rem;z-index:9999;animation:slideIn .2s ease;color:var(--grn);';
+  t.textContent='✓ '+msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2500);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded',()=>{
+  const saved=localStorage.getItem('torre_cfg');
+  if(saved){
+    try{
+      CFG=JSON.parse(saved);
+      if(CFG.user&&CFG.key){
+        // Pre-fill setup fields in case user needs to fix
+        document.getElementById('cfg-user').value = CFG.user;
+        document.getElementById('cfg-key').value = CFG.key;
+        initApp();
+        return;
+      }
+    }catch(e){}
+  }
+  renderTasksBadge();
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){closeModal();closeNtm();closeRm();closeVTM();}
+});
+</script>
+</body>
+</html>
