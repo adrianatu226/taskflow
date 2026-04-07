@@ -176,6 +176,9 @@ body{font-family:var(--sans);background:var(--bg);color:var(--tx);min-height:100
 .card-sla.safe{background:var(--grnbg);color:var(--grn);}
 .card-msg{font-size:.58rem;color:var(--red);margin-top:.18rem;font-weight:600;}
 .card-msg.blu{color:var(--blu);}
+.card-row{display:flex;align-items:center;justify-content:space-between;gap:.3rem;margin-top:.22rem;}
+.card-row .chip{flex:1;text-align:center;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.card-sep{height:1px;background:rgba(255,255,255,.05);margin:.28rem 0 .06rem;}
 
 /* TOOLTIP */
 #tooltip{position:fixed;background:var(--s3);border:1px solid var(--b2);border-radius:10px;padding:.65rem .9rem;font-size:.7rem;pointer-events:none;z-index:500;opacity:0;transition:opacity .12s;min-width:190px;max-width:250px;box-shadow:0 8px 32px rgba(0,0,0,.4);}
@@ -1045,30 +1048,42 @@ function renderCard(v) {
   const slaInfo = getSLAInfo(v);
   const ttData = encodeURIComponent(JSON.stringify({taller,model,plate,fleet:v['fleet']||'—',asesor:v['superadmin']||'—',dias:dias.toFixed(1),price:price>0?'$'+price.toLocaleString('es-MX',{maximumFractionDigits:0}):'—',alert,msg:v._alertMsg}));
 
-  const slaChip = v._phase==='ejecucion'||v._phase==='entrega'
-    ? `<div class="card-sla ${slaInfo.css}">⏱ ${slaInfo.label}</div>` : '';
-  const serviceLimitChip = `<span class="chip mu">${lim.label}·${lim.short}</span>`;
-  const diasChip = `<span class="chip ${alert==='lagging'?'red':alert==='leading'?'blu':'time'}">${dias.toFixed(1)}d</span>`;
-  const priceChip = price>0?`<span class="chip price">$${(price/1000).toFixed(0)}k</span>`:'';
-  const upsaleChip = upsales>1?`<span class="badge-upsale">⚠upsale</span>`:'';
+  const dotClass = alert==='lagging'?'red':alert==='leading'?'blu':'ok';
+  const diasClass = alert==='lagging'?'red':alert==='leading'?'blu':'time';
+  const slaClass = slaInfo.css==='expired'?'red':slaInfo.css==='urgent'?'yel':'grn';
+
   const lightBadge = isLight?`<span class="badge-light">L</span>`:'';
   const partesBadge = esperandoPartes?`<span class="badge-partes">partes</span>`:'';
-  const sinConfBadge = sinConf?`<span title="Taller no ha confirmado salida" style="font-size:.85rem;cursor:help;" >⚠️</span>`:'';
+  const sinConfBadge = sinConf?`<span title="Taller no ha confirmado salida" style="font-size:.8rem;cursor:help;">⚠️</span>`:'';
   const msg = v._alertMsg?`<div class="card-msg ${alert==='leading'?'blu':''}">${v._alertMsg}</div>`:'';
+
+  const priceEl = (v._phase==='aprobacion'&&price>0)
+    ?`<span class="chip price">$${(price/1000).toFixed(0)}k aprob.</span>`
+    :`<span></span>`;
+  const upsaleEl = upsales>0?`<span class="badge-upsale">⚠ upsale ${upsales}</span>`:'';
+  const hasBottomRow = (v._phase==='aprobacion'&&price>0)||upsales>0;
 
   return `<div class="card ${alert}"
     onclick="openModal('${v['appointment_id']}')"
     onmouseenter="showTooltip(event,'${ttData}')"
     onmouseleave="hideTooltip()">
     <div class="card-top">
-      <div class="card-dot ${alert==='lagging'?'red':alert==='leading'?'blu':'ok'}"></div>
+      <div class="card-dot ${dotClass}"></div>
       <div class="card-plate">${plate}</div>
       <div class="card-badges">${lightBadge}${partesBadge}${sinConfBadge}</div>
     </div>
-    <div class="card-model">${model} · ${asesor}</div>
     <div class="card-taller">${taller}</div>
-    <div class="card-chips">${diasChip}${serviceLimitChip}${priceChip}${upsaleChip}</div>
-    ${slaChip}
+    <div class="card-model">${model} · ${asesor}</div>
+    <div class="card-sep"></div>
+    <div class="card-row">
+      <span class="chip mu">${lim.label}</span>
+      <span class="chip mu">SLA ${lim.short}</span>
+    </div>
+    <div class="card-row">
+      <span class="chip ${diasClass}">${dias.toFixed(1)}d taller</span>
+      <span class="chip ${slaClass}">${slaInfo.label}</span>
+    </div>
+    ${hasBottomRow?`<div class="card-row">${priceEl}${upsaleEl}</div>`:''}
     ${msg}
   </div>`;
 }
