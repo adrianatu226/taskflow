@@ -178,7 +178,14 @@ body{font-family:var(--sans);background:var(--bg);color:var(--tx);min-height:100
 .card-msg.blu{color:var(--blu);}
 .card-row{display:flex;align-items:center;justify-content:space-between;gap:.25rem;margin-top:.2rem;}
 .card-row .chip{flex:1;text-align:center;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.54rem;}
-.card-sep{height:1px;background:rgba(255,255,255,.05);margin:.25rem 0 .04rem;}
+.card-sep{height:1px;background:rgba(255,255,255,.05);margin:.25rem 0 .1rem;}
+.card-metric{display:flex;align-items:center;justify-content:space-between;margin-top:.15rem;}
+.cm-label{font-size:.58rem;color:var(--mu2);font-family:var(--sans);}
+.cm-val{font-size:.62rem;font-family:var(--mono);font-weight:700;}
+.cm-val.red{color:var(--red);}
+.cm-val.yel{color:var(--yel);}
+.cm-val.grn{color:var(--grn);}
+.cm-val.blu{color:var(--blu);}
 
 /* TOOLTIP removed */
 
@@ -863,27 +870,20 @@ function pct(r) { return parseFloat(r['pct_sla_quote_teoric_expiration']) || 0; 
 // SLA helpers
 function getServiceLimit(r) {
   const s = (r['SERVICIO'] || '').toUpperCase();
-  if (s.includes('HYP COMPLEJO')) return { max: 14, label: 'HyP Complejo', short: '14d' };
-  if (s.includes('HYP')) return { max: 5, label: 'HyP Sencillo', short: '5d' };
-  return { max: 3, label: 'Correctivo', short: '3d' };
+  if (s.includes('HYP COMPLEJO')) return { max: 14, label: 'HyP Complejo' };
+  if (s.includes('HYP')) return { max: 5, label: 'HyP Sencillo' };
+  if (s.includes('PREVENTIVO')) return { max: 3, label: 'Preventivo' };
+  return { max: 3, label: 'Correctivo' };
 }
+// Returns individual SLA info: elapsed days and total SLA days for that appointment
 function getSLAInfo(r) {
-  // Use the individual sla_entrega date from the record
-  if (r['sla_entrega']) {
-    const deadline = new Date(r['sla_entrega']);
-    const now = new Date();
-    const diffDays = (deadline - now) / 86400000;
-    if (diffDays < 0) return { label: `${diffDays.toFixed(1)}d`, css: 'expired' };
-    if (diffDays < 1) return { label: `+${(diffDays*24).toFixed(0)}h`, css: 'urgent' };
-    return { label: `+${diffDays.toFixed(1)}d`, css: 'safe' };
-  }
-  // Fallback: use pct_sla_entrega if date not available
+  const dias = parseFloat(r['dias habiles desde recepcion']) || 0;
+  // Compute total SLA days from pct: pct = dias/total → total = dias/pct
   const pct = parseFloat(r['pct_sla_entrega']) || 0;
-  const lim = getServiceLimit(r);
-  if (pct > 1) return { label: `-${((pct-1)*lim.max).toFixed(1)}d`, css: 'expired' };
-  const rem = (1 - pct) * lim.max;
-  if (rem < 1) return { label: `+${(rem*8).toFixed(0)}h`, css: 'urgent' };
-  return { label: `+${rem.toFixed(1)}d`, css: 'safe' };
+  const total = (pct > 0) ? (dias / pct) : null;
+  const css = pct > 1 ? 'expired' : pct >= 0.8 ? 'urgent' : 'safe';
+  const totalStr = total ? total.toFixed(1)+'d' : '?';
+  return { elapsed: dias.toFixed(1)+'d', total: totalStr, pct, css };
 }
 function formatTime(ms) {
   const h = ms/3600000;
@@ -1056,8 +1056,8 @@ function renderCard(v) {
   const lim = getServiceLimit(v);
   const slaInfo = getSLAInfo(v);
   const dotClass = alert==='lagging'?'red':alert==='leading'?'blu':'ok';
-  const diasClass = alert==='lagging'?'red':alert==='leading'?'blu':'time';
   const slaClass = slaInfo.css==='expired'?'red':slaInfo.css==='urgent'?'yel':'grn';
+  const typeClass = (dias >= lim.max) ? 'red' : (dias >= lim.max * 0.8) ? 'yel' : 'grn';
 
   const lightBadge = isLight?`<span class="badge-light">L</span>`:'';
   const partesBadge = esperandoPartes?`<span class="badge-partes">partes</span>`:'';
@@ -1089,13 +1089,13 @@ function renderCard(v) {
     <div class="card-taller">${taller}</div>
     <div class="card-model">${model} · ${asesor}</div>
     <div class="card-sep"></div>
-    <div class="card-row">
-      <span class="chip mu">${lim.label}</span>
-      <span class="chip ${diasClass}">${dias.toFixed(1)}d</span>
+    <div class="card-metric">
+      <span class="cm-label">SLA</span>
+      <span class="cm-val ${slaClass}">${slaInfo.elapsed} / ${slaInfo.total}</span>
     </div>
-    <div class="card-row">
-      <span class="chip mu">SLA</span>
-      <span class="chip ${slaClass}">${slaInfo.label}</span>
+    <div class="card-metric">
+      <span class="cm-label">${lim.label}</span>
+      <span class="cm-val ${typeClass}">${dias.toFixed(1)}d / ${lim.max}d</span>
     </div>
     ${hasBottomRow?`<div class="card-row">${priceEl}${upsaleEl}</div>`:''}
     ${confirmedChip}
@@ -1135,7 +1135,7 @@ function openModal(apptId) {
   if (alert!=='ok'&&v._alertMsg) aHtml = `<div class="modal-alert-box ${alert==='leading'?'blu':'red'}"><div class="modal-alert-title ${alert==='leading'?'blu':'red'}">${alert==='leading'?'↗ LEADING':'⚠ LAGGING'}</div><div class="modal-alert-msg">${v._alertMsg}</div></div>`;
   aHtml += `<div style="background:var(--s2);border:1px solid var(--b);border-radius:8px;padding:.5rem .7rem;margin-bottom:.6rem;display:flex;justify-content:space-between;align-items:center;">
     <div><div style="font-size:.58rem;color:var(--mu);text-transform:uppercase;font-weight:700;letter-spacing:.6px;">Límite por tipo: ${lim.label}</div>
-    <div style="font-size:.8rem;font-weight:700;">${dias.toFixed(1)}d de ${lim.max}d máx — <span style="color:${slaInfo.css==='expired'?'var(--red)':slaInfo.css==='urgent'?'var(--yel)':'var(--grn)'}">${slaInfo.label}</span></div></div>
+    <div style="font-size:.8rem;font-weight:700;">Tipo: ${dias.toFixed(1)}d / ${lim.max}d · SLA: ${slaInfo.elapsed} / ${slaInfo.total}</div></div>
   </div>`;
   document.getElementById('m-alert-box').innerHTML = aHtml;
 
@@ -1151,7 +1151,7 @@ function openModal(apptId) {
   const fields = [
     ['Fase', FASE_LABELS[v._phase]||v._phase],['Asesor',asesor],['Servicio',lim.label+(v['SERVICIO']?` (${v['SERVICIO']})`:'' )],['Flota',fleet],['Taller',taller],
     ['Recepción',recepFmt],['Días en taller',dias.toFixed(1)+'d hábiles'],['Días desde aprobación',diasApDisplay],
-    ['Fecha límite SLA',slaFmt],['Tiempo restante',slaInfo.label],['Última cotización',convFmt],
+    ['Fecha límite SLA',slaFmt],['SLA transcurrido / total',`${slaInfo.elapsed} / ${slaInfo.total}`],['Última cotización',convFmt],
     ['Valor pendiente',price>0?'$'+price.toLocaleString('es-MX',{maximumFractionDigits:0}):'—'],
     ['Upsales',upsales>1?'⚠ '+upsales+' (revisar diagnóstico)':upsales.toString()],
     ['Estado',v['estado']||'—'],
@@ -1277,7 +1277,7 @@ function openVTM(asesorName) {
       <td>${dias.toFixed(1)}d</td>
       <td>${v['cantidad_upsales']||0}</td>
       <td><span class="status-pill ${slaCSS}">${slaFmt}</span></td>
-      <td><span class="status-pill ${diasSlaCSS}">${slaInfo.label} (${lim.label})</span></td>
+      <td><span class="status-pill ${diasSlaCSS}">${slaInfo.elapsed}/${slaInfo.total}</span></td>
     </tr>`;
   }).join('');
   document.getElementById('vtm-table').innerHTML=`<thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows}</tbody>`;
@@ -1507,7 +1507,7 @@ function exportPhase(phase) {
   const phaseLabel = PHASE_LABELS[phase] || phase;
   const rows = [EXPORT_HEADERS, ...vehicles.map(v => {
     const lim = getServiceLimit(v), slaInfo = getSLAInfo(v);
-    return [...EXPORT_COLS.map(c => v[c]||''), lim.label, slaInfo.label];
+    return [...EXPORT_COLS.map(c => v[c]||''), lim.label, slaInfo.elapsed+'/'+slaInfo.total];
   })];
   // Add SLA cols to header
   rows[0] = [...EXPORT_HEADERS, 'Tipo Servicio', 'SLA Estado'];
@@ -1538,7 +1538,7 @@ function exportAll() {
   const allRows = [['Fase',...EXPORT_HEADERS,'Tipo Servicio','SLA Estado']];
   vehicles.forEach(v => {
     const lim=getServiceLimit(v),slaInfo=getSLAInfo(v);
-    allRows.push([PHASE_LABELS[v._phase]||v._phase,...EXPORT_COLS.map(c=>v[c]||''),lim.label,slaInfo.label]);
+    allRows.push([PHASE_LABELS[v._phase]||v._phase,...EXPORT_COLS.map(c=>v[c]||''),lim.label,slaInfo.elapsed+'/'+slaInfo.total]);
   });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(allRows), 'Todos los vehículos');
   XLSX.writeFile(wb, `Torre_Central_${new Date().toISOString().slice(0,10)}.xlsx`);
@@ -1549,7 +1549,7 @@ function exportVehicle(apptId) {
   const v=allVehicles.find(v=>String(v['appointment_id'])===String(apptId));
   if(!v)return;
   const lim=getServiceLimit(v),slaInfo=getSLAInfo(v);
-  const data=[['Campo','Valor'],['Appointment ID',v['appointment_id']],['Placa',v['vehicle_plates']],['Modelo',v['modelo']],['Taller',v['name_shop']],['Flota',v['fleet']],['Asesor',v['superadmin']],['Servicio',v['SERVICIO']],['Fase',FASE_LABELS[v._phase]||v._phase],['Estado',v['estado']],['Recepción',v['reception_time']],['Fecha límite SLA',v['sla_entrega']],['Tiempo restante',slaInfo.label],['Límite por tipo',lim.label+' ('+lim.max+'d)'],['Días en taller',v['dias habiles desde recepcion']],['Días desde aprobación',v['dias habiles desde aprobacion']],['Última cotización',v['quote_max_converted_at']],['Valor pendiente',v['total_pending_price']],['Estado SLA',v['Estado SLA']],['Upsales',v['cantidad_upsales']],['Es Light',v['is_light']]];
+  const data=[['Campo','Valor'],['Appointment ID',v['appointment_id']],['Placa',v['vehicle_plates']],['Modelo',v['modelo']],['Taller',v['name_shop']],['Flota',v['fleet']],['Asesor',v['superadmin']],['Servicio',v['SERVICIO']],['Fase',FASE_LABELS[v._phase]||v._phase],['Estado',v['estado']],['Recepción',v['reception_time']],['Fecha límite SLA',v['sla_entrega']],['Tiempo restante',slaInfo.elapsed+'/'+slaInfo.total],['Límite por tipo',lim.label+' ('+lim.max+'d)'],['Días en taller',v['dias habiles desde recepcion']],['Días desde aprobación',v['dias habiles desde aprobacion']],['Última cotización',v['quote_max_converted_at']],['Valor pendiente',v['total_pending_price']],['Estado SLA',v['Estado SLA']],['Upsales',v['cantidad_upsales']],['Es Light',v['is_light']]];
   const wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(data);
   XLSX.utils.book_append_sheet(wb,ws,'Datos');
   XLSX.writeFile(wb,`${v['vehicle_plates']||apptId}_${new Date().toISOString().slice(0,10)}.xlsx`);
@@ -1658,11 +1658,11 @@ function generateRecos() {
       }
 
       // Límite por tipo de servicio vencido
-      if (slaInfo.css === 'expired') {
+      if (slaInfo.pct > 1) {
         const exceso = (dias - lim.max).toFixed(1);
         add('lagging', `${plate} supera el límite de ${lim.label} (${lim.max}d) por ${exceso}d adicionales en ${taller}. Escalar con el taller para fecha compromiso firme — ${asesor} debe documentar la causa del retraso.`, 'alta');
-      } else if (slaInfo.css === 'urgent') {
-        add('leading', `${plate} está por agotar el límite de ${lim.label} — ${slaInfo.label}. ${asesor} debe verificar el avance con ${taller} hoy para evitar vencimiento.`, 'media');
+      } else if (slaInfo.pct >= 0.8) {
+        add('leading', `${plate} está por agotar el límite de ${lim.label} — ${slaInfo.elapsed+'/'+slaInfo.total}. ${asesor} debe verificar el avance con ${taller} hoy para evitar vencimiento.`, 'media');
       }
 
       // SLA pronto a vencer
