@@ -868,12 +868,21 @@ function getServiceLimit(r) {
   return { max: 3, label: 'Correctivo', short: '3d' };
 }
 function getSLAInfo(r) {
+  // Use the individual sla_entrega date from the record
+  if (r['sla_entrega']) {
+    const deadline = new Date(r['sla_entrega']);
+    const now = new Date();
+    const diffDays = (deadline - now) / 86400000;
+    if (diffDays < 0) return { label: `${diffDays.toFixed(1)}d`, css: 'expired' };
+    if (diffDays < 1) return { label: `+${(diffDays*24).toFixed(0)}h`, css: 'urgent' };
+    return { label: `+${diffDays.toFixed(1)}d`, css: 'safe' };
+  }
+  // Fallback: use pct_sla_entrega if date not available
+  const pct = parseFloat(r['pct_sla_entrega']) || 0;
   const lim = getServiceLimit(r);
-  const dias = parseFloat(r['dias habiles desde recepcion']) || 0;
-  const overrun = dias - lim.max;
-  if (overrun > 0) return { label: `-${overrun.toFixed(1)}d`, css: 'expired' };
-  const rem = lim.max - dias;
-  if (rem < 1) return { label: `-${(rem*8).toFixed(0)}h`, css: 'urgent' };
+  if (pct > 1) return { label: `-${((pct-1)*lim.max).toFixed(1)}d`, css: 'expired' };
+  const rem = (1 - pct) * lim.max;
+  if (rem < 1) return { label: `+${(rem*8).toFixed(0)}h`, css: 'urgent' };
   return { label: `+${rem.toFixed(1)}d`, css: 'safe' };
 }
 function formatTime(ms) {
@@ -1085,7 +1094,7 @@ function renderCard(v) {
       <span class="chip ${diasClass}">${dias.toFixed(1)}d</span>
     </div>
     <div class="card-row">
-      <span class="chip mu">SLA ${lim.short}</span>
+      <span class="chip mu">SLA</span>
       <span class="chip ${slaClass}">${slaInfo.label}</span>
     </div>
     ${hasBottomRow?`<div class="card-row">${priceEl}${upsaleEl}</div>`:''}
