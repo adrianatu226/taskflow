@@ -871,10 +871,10 @@ function getSLAInfo(r) {
   const lim = getServiceLimit(r);
   const dias = parseFloat(r['dias habiles desde recepcion']) || 0;
   const overrun = dias - lim.max;
-  if (overrun > 0) return { label: `Vencido hace ${overrun.toFixed(1)}d`, css: 'expired' };
+  if (overrun > 0) return { label: `-${overrun.toFixed(1)}d`, css: 'expired' };
   const rem = lim.max - dias;
-  if (rem < 1) return { label: `Vence en ${(rem*8).toFixed(0)}h`, css: 'urgent' };
-  return { label: `${rem.toFixed(1)}d restantes`, css: 'safe' };
+  if (rem < 1) return { label: `-${(rem*8).toFixed(0)}h`, css: 'urgent' };
+  return { label: `+${rem.toFixed(1)}d`, css: 'safe' };
 }
 function formatTime(ms) {
   const h = ms/3600000;
