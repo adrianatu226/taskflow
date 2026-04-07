@@ -337,7 +337,12 @@ body{font-family:var(--sans);background:var(--bg);color:var(--tx);min-height:100
 .cotiz-table th{background:var(--s2);padding:.4rem .65rem;text-align:left;font-size:.6rem;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--mu);border-bottom:1px solid var(--b);white-space:nowrap;}
 .cotiz-table td{padding:.38rem .65rem;border-bottom:1px solid var(--b);vertical-align:middle;}
 .cotiz-table tr:hover td{background:var(--s2);}
-.cotiz-group-header{background:var(--s3);padding:.35rem .65rem;font-size:.68rem;font-weight:700;color:var(--mu2);border-bottom:1px solid var(--b);display:flex;align-items:center;gap:.5rem;}
+.cotiz-group{border:1px solid var(--b);border-radius:8px;margin-bottom:.5rem;overflow:hidden;}
+.cotiz-group-header{background:var(--s3);padding:.4rem .65rem;font-size:.72rem;font-weight:700;color:var(--tx);border-bottom:1px solid var(--b);display:flex;align-items:center;gap:.5rem;cursor:pointer;user-select:none;transition:background .12s;}
+.cotiz-group-header:hover{background:var(--b);}
+.cotiz-toggle{color:var(--mu2);font-size:.7rem;width:10px;flex-shrink:0;}
+.cotiz-name{flex:1;}
+.cotiz-count{font-size:.65rem;color:var(--mu2);font-family:var(--mono);}
 
 /* ESPERANDO PARTES */
 .partes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:.7rem;}
@@ -550,9 +555,9 @@ body{font-family:var(--sans);background:var(--bg);color:var(--tx);min-height:100
     <div id="view-tareas" class="view-wrap">
       <div class="view-title">✅ Tareas</div>
       <div class="view-controls">
-        <button class="filter-btn active" onclick="filterTasks('all',this)">Todas</button>
-        <button class="filter-btn" onclick="filterTasks('pending',this)">Pendientes</button>
+        <button class="filter-btn active" onclick="filterTasks('pending',this)">Pendientes</button>
         <button class="filter-btn" onclick="filterTasks('done',this)">Completadas</button>
+        <button class="filter-btn" onclick="filterTasks('all',this)">Todas</button>
         <select class="filter-select" id="tasks-asesor-filter" onchange="renderTasks()">
           <option value="">Todos los asesores</option>
         </select>
@@ -665,7 +670,7 @@ let filteredVehicles = [];
 let currentModal = null;
 let nextRefresh = 300;
 let timerInterval = null;
-let currentTaskFilter = 'all';
+let currentTaskFilter = 'pending';
 let reassignTarget = null;
 let recoItems = [];
 
@@ -1289,33 +1294,50 @@ function closeRm(){document.getElementById('rm').classList.remove('show');}
 // ═══════════════════════════════════════════════════════════════
 // COTIZACIONES
 // ═══════════════════════════════════════════════════════════════
+const _cotizExpanded = new Set();
+function toggleCotizGroup(name) {
+  if (_cotizExpanded.has(name)) _cotizExpanded.delete(name);
+  else _cotizExpanded.add(name);
+  renderCotizaciones();
+}
 function renderCotizaciones() {
-  const cotiz=filteredVehicles.filter(v=>v._phase==='aprobacion'||v._phase==='cotizacion');
+  // Solo cotizaciones pendientes de convertirse (fase cotizacion únicamente)
+  const cotiz=filteredVehicles.filter(v=>v._phase==='cotizacion');
   const byAsesor={};
   cotiz.forEach(v=>{const a=v['superadmin']||'Sin asignar';if(!byAsesor[a])byAsesor[a]=[];byAsesor[a].push(v);});
+  const total=cotiz.length;
   const html=Object.entries(byAsesor).sort((a,b)=>b[1].length-a[1].length).map(([name,vs])=>{
     vs.sort((a,b)=>(parseFloat(b['dias habiles desde recepcion'])||0)-(parseFloat(a['dias habiles desde recepcion'])||0));
+    const lag=vs.filter(v=>v._alert==='lagging').length;
+    const lead=vs.filter(v=>v._alert==='leading').length;
+    const isOpen=_cotizExpanded.has(name);
+    const lagBadge=lag>0?`<span class="status-pill red" style="font-size:.58rem;padding:.02rem .3rem;">${lag} lag</span>`:'';
+    const leadBadge=lead>0?`<span class="status-pill yel" style="font-size:.58rem;padding:.02rem .3rem;">${lead} lead</span>`:'';
     const rows=vs.map(v=>{
-      const dias=parseFloat(v['dias habiles desde recepcion'])||0,price=parseFloat(v['total_pending_price'])||0;
-      const diasCss=dias>2?'red':dias>1?'yel':'grn';
+      const dias=parseFloat(v['dias habiles desde recepcion'])||0;
+      const diasCss=v._alert==='lagging'?'red':v._alert==='leading'?'yel':'grn';
+      const lim=getServiceLimit(v);
       return `<tr>
         <td onclick="openModal('${v['appointment_id']}')" style="cursor:pointer;color:var(--ac);font-family:var(--mono);font-weight:700;">${v['vehicle_plates']||v['appointment_id']}</td>
-        <td>${FASE_LABELS[v._phase]||v._phase}</td>
         <td><span class="status-pill ${diasCss}">${dias.toFixed(1)}d</span></td>
-        <td>${price>0?'$'+price.toLocaleString('es-MX',{maximumFractionDigits:0}):'—'}</td>
-        <td style="color:var(--mu2);">—</td>
+        <td>${lim.label}</td>
         <td>${(v['name_shop']||'—').slice(0,18)}</td>
       </tr>`;
     }).join('');
-    return `<div style="margin-bottom:1rem;">
-      <div class="cotiz-group-header">${name} <span style="color:var(--mu);">· ${vs.length} cotizaciones</span></div>
-      <table class="cotiz-table">
-        <thead><tr><th>Placa</th><th>Fase</th><th>Días pendiente</th><th>Valor</th><th># Trabajos</th><th>Taller</th></tr></thead>
+    return `<div class="cotiz-group">
+      <div class="cotiz-group-header" onclick="toggleCotizGroup('${name.replace(/'/g,"\\'")}')">
+        <span class="cotiz-toggle">${isOpen?'▾':'▸'}</span>
+        <span class="cotiz-name">${name}</span>
+        <span class="cotiz-count">${vs.length} cotizacion${vs.length!==1?'es':''}</span>
+        <span style="display:flex;gap:.3rem;margin-left:.4rem;">${lagBadge}${leadBadge}</span>
+      </div>
+      ${isOpen?`<table class="cotiz-table">
+        <thead><tr><th>Placa</th><th>Días en taller</th><th>Servicio</th><th>Taller</th></tr></thead>
         <tbody>${rows}</tbody>
-      </table>
+      </table>`:''}
     </div>`;
   }).join('');
-  document.getElementById('cotiz-content').innerHTML=html||'<div class="no-data">Sin cotizaciones pendientes</div>';
+  document.getElementById('cotiz-content').innerHTML=`<div style="font-size:.68rem;color:var(--mu2);margin-bottom:.7rem;">${total} cotización${total!==1?'es':''} pendiente${total!==1?'s':''} de convertir</div>`+(html||'<div class="no-data">Sin cotizaciones pendientes</div>');
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1533,11 +1555,20 @@ function generateRecos() {
   const btn=document.getElementById('reco-btn');
   const list=document.getElementById('reco-list');
   const topAct=document.getElementById('reco-top-actions');
+  const thinking=document.getElementById('reco-thinking');
 
   btn.disabled=true; btn.textContent='Analizando...';
   list.innerHTML=''; topAct.style.display='none';
+  thinking.classList.add('show');
 
   recoItems = [];
+
+  if (!allVehicles.length) {
+    thinking.classList.remove('show');
+    btn.disabled=false; btn.textContent='✦ Generar plan';
+    list.innerHTML='<div class="reco-empty">No hay datos cargados. Conecta el Apps Script primero.</div>';
+    return;
+  }
 
   allVehicles.forEach(v => {
     const plate = v['vehicle_plates']||v['appointment_id'];
@@ -1646,9 +1677,14 @@ function generateRecos() {
       }
     }
 
+    // ── SIN CONFIRMAR ──────────────────────────────────────────
+    if (fase === 'entrega_sinconf') {
+      add('lagging', `El taller ${taller} no ha confirmado la salida de ${plate}. ${asesor} debe escribirle al taller indicando que el coche aparece pendiente de confirmación y solicitar que actualicen el estatus en el sistema.`, 'alta');
+    }
+
     // ── ENTREGA ────────────────────────────────────────────────
     if (fase === 'entrega') {
-      if (sinConf || estado.includes('sin confirmacion')) {
+      if (estado.includes('sin confirmacion')) {
         add('lagging', `El taller ${taller} no ha confirmado la salida de ${plate}. ${asesor} debe escribirle al taller indicando que el coche aparece pendiente de confirmación y solicitar que actualicen el estatus en el sistema.`, 'alta');
       } else {
         add('leading', `${plate} listo para entrega confirmada en ${taller}. ${asesor} debe coordinar con el cliente la fecha y hora de recolección.`, 'baja');
@@ -1666,6 +1702,7 @@ function generateRecos() {
   });
 
   btn.disabled=false; btn.textContent='✦ Generar plan';
+  thinking.classList.remove('show');
   renderRecoList();
 }
 
