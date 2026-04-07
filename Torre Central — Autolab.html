@@ -876,21 +876,23 @@ function getServiceLimit(r) {
   return { max: 3, label: 'Correctivo' };
 }
 // Returns individual SLA info: elapsed days and total SLA days for that appointment
+// SLA runs from job_max_approved_date (quote approval) → sla_entrega
 function getSLAInfo(r) {
-  const dias = parseFloat(r['dias habiles desde recepcion']) || 0;
-  const recep = r['reception_time'] ? new Date(r['reception_time']) : null;
+  const approved = r['job_max_approved_date'] ? new Date(r['job_max_approved_date']) : null;
   const deadline = r['sla_entrega'] ? new Date(r['sla_entrega']) : null;
-  // Compute total SLA days from reception → deadline
-  let total = null;
-  let pct = parseFloat(r['pct_sla_entrega']) || 0;
-  if (recep && deadline) {
-    total = (deadline - recep) / 86400000;
-    pct = total > 0 ? dias / total : pct;
-  } else if (pct > 0) {
-    total = dias / pct;
+  const now = new Date();
+
+  if (approved && deadline) {
+    const total = (deadline - approved) / 86400000;
+    const elapsed = (now - approved) / 86400000;
+    const pct = total > 0 ? elapsed / total : 0;
+    return { elapsed: elapsed.toFixed(1)+'d', total: total.toFixed(1)+'d', pct };
   }
-  const totalStr = total ? total.toFixed(1)+'d' : '—';
-  return { elapsed: dias.toFixed(1)+'d', total: totalStr, pct };
+  // Fallback: use pct_sla_entrega + dias desde aprobacion
+  const pct = parseFloat(r['pct_sla_entrega']) || 0;
+  const diasAp = parseFloat(r['dias habiles desde aprobacion']) || 0;
+  const total = (pct > 0 && diasAp > 0) ? diasAp / pct : null;
+  return { elapsed: diasAp > 0 ? diasAp.toFixed(1)+'d' : '—', total: total ? total.toFixed(1)+'d' : '—', pct };
 }
 function formatTime(ms) {
   const h = ms/3600000;
