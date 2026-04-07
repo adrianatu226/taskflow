@@ -180,12 +180,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--tx);min-height:100
 .card-row .chip{flex:1;text-align:center;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .card-sep{height:1px;background:rgba(255,255,255,.05);margin:.28rem 0 .06rem;}
 
-/* TOOLTIP */
-#tooltip{position:fixed;background:var(--s3);border:1px solid var(--b2);border-radius:10px;padding:.65rem .9rem;font-size:.7rem;pointer-events:none;z-index:500;opacity:0;transition:opacity .12s;min-width:190px;max-width:250px;box-shadow:0 8px 32px rgba(0,0,0,.4);}
-#tooltip.show{opacity:1;}
-.tt-row{display:flex;justify-content:space-between;gap:.6rem;margin-bottom:.18rem;}
-.tt-label{color:var(--mu2);}
-.tt-val{font-weight:600;font-family:var(--mono);font-size:.66rem;text-align:right;}
+/* TOOLTIP removed */
 
 /* MODAL APPOINTMENT */
 #modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:400;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
@@ -591,7 +586,6 @@ body{font-family:var(--sans);background:var(--bg);color:var(--tx);min-height:100
 </div>
 
 <!-- TOOLTIP -->
-<div id="tooltip"></div>
 
 <!-- MODAL APPOINTMENT -->
 <div id="modal">
@@ -744,6 +738,7 @@ function loadData() {
         obj._phase = detectPhase(obj);
         obj._alert = detectAlert(obj);
         obj._alertMsg = getAlertMsg(obj);
+        if (obj._phase === 'entrega') markDeliveryConfirmed(obj['appointment_id']);
         return obj;
       }).filter(v => v._phase !== 'otro');
       processData();
@@ -1046,15 +1041,14 @@ function renderCard(v) {
   const sinConf = estado.includes('sin confirmacion');
   const lim = getServiceLimit(v);
   const slaInfo = getSLAInfo(v);
-  const ttData = encodeURIComponent(JSON.stringify({taller,model,plate,fleet:v['fleet']||'—',asesor:v['superadmin']||'—',dias:dias.toFixed(1),price:price>0?'$'+price.toLocaleString('es-MX',{maximumFractionDigits:0}):'—',alert,msg:v._alertMsg}));
-
   const dotClass = alert==='lagging'?'red':alert==='leading'?'blu':'ok';
   const diasClass = alert==='lagging'?'red':alert==='leading'?'blu':'time';
   const slaClass = slaInfo.css==='expired'?'red':slaInfo.css==='urgent'?'yel':'grn';
 
   const lightBadge = isLight?`<span class="badge-light">L</span>`:'';
   const partesBadge = esperandoPartes?`<span class="badge-partes">partes</span>`:'';
-  const sinConfBadge = sinConf?`<span title="Taller no ha confirmado salida" style="font-size:.8rem;cursor:help;">⚠️</span>`:'';
+  // Badge sinConf only shown outside entrega_sinconf column (that column already conveys it)
+  const sinConfBadge = (sinConf && v._phase!=='entrega_sinconf')?`<span title="Taller no ha confirmado salida" style="font-size:.8rem;cursor:help;">⚠️</span>`:'';
   const msg = v._alertMsg?`<div class="card-msg ${alert==='leading'?'blu':''}">${v._alertMsg}</div>`:'';
 
   const priceEl = (v._phase==='aprobacion'&&price>0)
@@ -1063,10 +1057,18 @@ function renderCard(v) {
   const upsaleEl = upsales>0?`<span class="badge-upsale">⚠ upsale ${upsales}</span>`:'';
   const hasBottomRow = (v._phase==='aprobacion'&&price>0)||upsales>0;
 
+  // For "por entregar" column: show time since delivery was confirmed
+  let confirmedChip = '';
+  if (v._phase==='entrega') {
+    const confirmedTs = getDeliveryConfirmedAt(v['appointment_id']);
+    if (confirmedTs) {
+      const elapsed = Date.now() - confirmedTs;
+      confirmedChip = `<div class="card-row"><span class="chip grn" style="flex:none;width:100%;text-align:left;">Lista hace ${formatTime(elapsed)}</span></div>`;
+    }
+  }
+
   return `<div class="card ${alert}"
-    onclick="openModal('${v['appointment_id']}')"
-    onmouseenter="showTooltip(event,'${ttData}')"
-    onmouseleave="hideTooltip()">
+    onclick="openModal('${v['appointment_id']}')">
     <div class="card-top">
       <div class="card-dot ${dotClass}"></div>
       <div class="card-plate">${plate}</div>
@@ -1084,6 +1086,7 @@ function renderCard(v) {
       <span class="chip ${slaClass}">${slaInfo.label}</span>
     </div>
     ${hasBottomRow?`<div class="card-row">${priceEl}${upsaleEl}</div>`:''}
+    ${confirmedChip}
     ${msg}
   </div>`;
 }
@@ -1091,22 +1094,14 @@ function renderCard(v) {
 // ═══════════════════════════════════════════════════════════════
 // TOOLTIP
 // ═══════════════════════════════════════════════════════════════
-function showTooltip(e, dataStr) {
-  const d = JSON.parse(decodeURIComponent(dataStr));
-  const tt = document.getElementById('tooltip');
-  const alert_row = d.msg ? `<div style="margin-top:.3rem;font-size:.62rem;color:${d.alert==='lagging'?'var(--red)':'var(--blu)'};">${d.msg}</div>` : '';
-  tt.innerHTML = [['Taller',d.taller],['Modelo',d.model],['Placa',d.plate],['Flota',d.fleet],['Asesor',d.asesor],['Días',d.dias+'d'],d.price!=='—'?['Valor',d.price]:null]
-    .filter(Boolean).map(([l,v])=>`<div class="tt-row"><span class="tt-label">${l}</span><span class="tt-val">${v}</span></div>`).join('') + alert_row;
-  tt.classList.add('show');
-  posTooltip(e);
+// Delivery confirmation tracker — records first time a vehicle is seen in 'entrega' phase
+function getDeliveryConfirmedAt(apptId) {
+  return parseInt(localStorage.getItem('confirmed_'+apptId)) || 0;
 }
-function posTooltip(e) {
-  const tt = document.getElementById('tooltip');
-  tt.style.left = Math.min(e.clientX+14,window.innerWidth-260)+'px';
-  tt.style.top = Math.min(e.clientY+14,window.innerHeight-200)+'px';
+function markDeliveryConfirmed(apptId) {
+  if (!localStorage.getItem('confirmed_'+apptId))
+    localStorage.setItem('confirmed_'+apptId, Date.now());
 }
-document.addEventListener('mousemove',e=>{const tt=document.getElementById('tooltip');if(tt.classList.contains('show'))posTooltip(e);});
-function hideTooltip(){document.getElementById('tooltip').classList.remove('show');}
 
 // ═══════════════════════════════════════════════════════════════
 // MODAL APPOINTMENT
@@ -1136,9 +1131,15 @@ function openModal(apptId) {
   const slaFmt = v['sla_entrega'] ? new Date(v['sla_entrega']).toLocaleString('es-MX') : '—';
   const recepFmt = v['reception_time'] ? new Date(v['reception_time']).toLocaleString('es-MX') : '—';
   const convFmt = v['quote_max_converted_at'] ? new Date(v['quote_max_converted_at']).toLocaleString('es-MX') : '—';
+  // Fallback for diasAp: estimate from quote_max_converted_at for upsales in aprobacion
+  let diasApDisplay = diasAp>0 ? diasAp.toFixed(1)+'d hábiles' : '—';
+  if (!diasAp && v._phase==='aprobacion' && v['quote_max_converted_at']) {
+    const msWaiting = Date.now() - new Date(v['quote_max_converted_at']).getTime();
+    if (msWaiting > 0) diasApDisplay = '~'+formatTime(msWaiting)+' (desde últ. cotiz.)';
+  }
   const fields = [
-    ['Fase', FASE_LABELS[v._phase]||v._phase],['Asesor',asesor],['Servicio',servicio],['Flota',fleet],['Taller',taller],
-    ['Recepción',recepFmt],['Días en taller',dias.toFixed(1)+'d hábiles'],['Días desde aprobación',diasAp>0?diasAp.toFixed(1)+'d':'—'],
+    ['Fase', FASE_LABELS[v._phase]||v._phase],['Asesor',asesor],['Servicio',lim.label+(v['SERVICIO']?` (${v['SERVICIO']})`:'' )],['Flota',fleet],['Taller',taller],
+    ['Recepción',recepFmt],['Días en taller',dias.toFixed(1)+'d hábiles'],['Días desde aprobación',diasApDisplay],
     ['Fecha límite SLA',slaFmt],['Tiempo restante',slaInfo.label],['Última cotización',convFmt],
     ['Valor pendiente',price>0?'$'+price.toLocaleString('es-MX',{maximumFractionDigits:0}):'—'],
     ['Upsales',upsales>1?'⚠ '+upsales+' (revisar diagnóstico)':upsales.toString()],
@@ -1164,12 +1165,13 @@ function openModal(apptId) {
 function closeModal(){document.getElementById('modal').classList.remove('show');currentModal=null;}
 document.getElementById('modal').addEventListener('click',e=>{if(e.target===document.getElementById('modal'))closeModal();});
 
+const KAM = 'Juancamilo Mercado';
 function getTaskSuggestions(v) {
   const t=[], a=v['superadmin']||'';
   if (v._alert==='lagging') {
     if (v._phase==='diagnostico') t.push({title:`Presionar taller para iniciar diagnóstico (${v['vehicle_plates']})`,assignee:a,priority:'alta'});
     if (v._phase==='cotizacion') t.push({title:`Urgente: generar cotización (${v['vehicle_plates']})`,assignee:a,priority:'alta'});
-    if (v._phase==='aprobacion') t.push({title:`Seguimiento al cliente para aprobación (${v['vehicle_plates']})`,assignee:a,priority:'alta'});
+    if (v._phase==='aprobacion') t.push({title:`Seguimiento al cliente para aprobación (${v['vehicle_plates']})`,assignee:KAM,priority:'alta'});
     if (v._phase==='ejecucion') t.push({title:`SLA vencido: revisar avance de trabajos (${v['vehicle_plates']})`,assignee:a,priority:'alta'});
     if (v._phase==='entrega') {
       const sinConfCheck = (v['estado']||'').toLowerCase().includes('sin confirmacion');
@@ -1181,7 +1183,7 @@ function getTaskSuggestions(v) {
     }
   } else if (v._alert==='leading') {
     if (v._phase==='cotizacion') t.push({title:`Priorizar cotización antes de vencer SLA (${v['vehicle_plates']})`,assignee:a,priority:'media'});
-    if (v._phase==='aprobacion') t.push({title:`Dar seguimiento a aprobación pendiente (${v['vehicle_plates']})`,assignee:a,priority:'media'});
+    if (v._phase==='aprobacion') t.push({title:`Dar seguimiento a aprobación pendiente (${v['vehicle_plates']})`,assignee:KAM,priority:'media'});
     if (v._phase==='ejecucion') t.push({title:`Verificar avance de trabajos (${v['vehicle_plates']})`,assignee:a,priority:'media'});
   }
   return t;
