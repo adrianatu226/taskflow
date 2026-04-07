@@ -1082,10 +1082,10 @@ function renderCard(v) {
     <div class="card-sep"></div>
     <div class="card-row">
       <span class="chip mu">${lim.label}</span>
-      <span class="chip mu">SLA ${lim.short}</span>
+      <span class="chip ${diasClass}">${dias.toFixed(1)}d</span>
     </div>
     <div class="card-row">
-      <span class="chip ${diasClass}">${dias.toFixed(1)}d taller</span>
+      <span class="chip mu">SLA ${lim.short}</span>
       <span class="chip ${slaClass}">${slaInfo.label}</span>
     </div>
     ${hasBottomRow?`<div class="card-row">${priceEl}${upsaleEl}</div>`:''}
