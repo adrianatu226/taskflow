@@ -878,12 +878,19 @@ function getServiceLimit(r) {
 // Returns individual SLA info: elapsed days and total SLA days for that appointment
 function getSLAInfo(r) {
   const dias = parseFloat(r['dias habiles desde recepcion']) || 0;
-  // Compute total SLA days from pct: pct = dias/total → total = dias/pct
-  const pct = parseFloat(r['pct_sla_entrega']) || 0;
-  const total = (pct > 0) ? (dias / pct) : null;
-  const css = pct > 1 ? 'expired' : pct >= 0.8 ? 'urgent' : 'safe';
-  const totalStr = total ? total.toFixed(1)+'d' : '?';
-  return { elapsed: dias.toFixed(1)+'d', total: totalStr, pct, css };
+  const recep = r['reception_time'] ? new Date(r['reception_time']) : null;
+  const deadline = r['sla_entrega'] ? new Date(r['sla_entrega']) : null;
+  // Compute total SLA days from reception → deadline
+  let total = null;
+  let pct = parseFloat(r['pct_sla_entrega']) || 0;
+  if (recep && deadline) {
+    total = (deadline - recep) / 86400000;
+    pct = total > 0 ? dias / total : pct;
+  } else if (pct > 0) {
+    total = dias / pct;
+  }
+  const totalStr = total ? total.toFixed(1)+'d' : '—';
+  return { elapsed: dias.toFixed(1)+'d', total: totalStr, pct };
 }
 function formatTime(ms) {
   const h = ms/3600000;
@@ -1133,9 +1140,18 @@ function openModal(apptId) {
   // Alert + SLA box
   let aHtml = '';
   if (alert!=='ok'&&v._alertMsg) aHtml = `<div class="modal-alert-box ${alert==='leading'?'blu':'red'}"><div class="modal-alert-title ${alert==='leading'?'blu':'red'}">${alert==='leading'?'↗ LEADING':'⚠ LAGGING'}</div><div class="modal-alert-msg">${v._alertMsg}</div></div>`;
-  aHtml += `<div style="background:var(--s2);border:1px solid var(--b);border-radius:8px;padding:.5rem .7rem;margin-bottom:.6rem;display:flex;justify-content:space-between;align-items:center;">
-    <div><div style="font-size:.58rem;color:var(--mu);text-transform:uppercase;font-weight:700;letter-spacing:.6px;">Límite por tipo: ${lim.label}</div>
-    <div style="font-size:.8rem;font-weight:700;">Tipo: ${dias.toFixed(1)}d / ${lim.max}d · SLA: ${slaInfo.elapsed} / ${slaInfo.total}</div></div>
+  const typeColor = dias >= lim.max ? 'var(--red)' : dias >= lim.max*0.8 ? 'var(--yel)' : 'var(--grn)';
+  const slaColor = slaInfo.pct>1 ? 'var(--red)' : slaInfo.pct>=0.8 ? 'var(--yel)' : 'var(--grn)';
+  aHtml += `<div style="background:var(--s2);border:1px solid var(--b);border-radius:8px;padding:.5rem .7rem;margin-bottom:.6rem;display:flex;gap:1.2rem;">
+    <div style="flex:1;">
+      <div style="font-size:.55rem;color:var(--mu);text-transform:uppercase;font-weight:700;letter-spacing:.6px;margin-bottom:.15rem;">Tipo · ${lim.label}</div>
+      <div style="font-size:.85rem;font-weight:800;font-family:var(--mono);color:${typeColor};">${dias.toFixed(1)}d <span style="font-size:.65rem;color:var(--mu2);font-weight:400;">/ ${lim.max}d máx</span></div>
+    </div>
+    <div style="width:1px;background:var(--b);flex-shrink:0;"></div>
+    <div style="flex:1;">
+      <div style="font-size:.55rem;color:var(--mu);text-transform:uppercase;font-weight:700;letter-spacing:.6px;margin-bottom:.15rem;">SLA individual</div>
+      <div style="font-size:.85rem;font-weight:800;font-family:var(--mono);color:${slaColor};">${slaInfo.elapsed} <span style="font-size:.65rem;color:var(--mu2);font-weight:400;">/ ${slaInfo.total}</span></div>
+    </div>
   </div>`;
   document.getElementById('m-alert-box').innerHTML = aHtml;
 
