@@ -1056,7 +1056,7 @@ function renderCard(v) {
   const lim = getServiceLimit(v);
   const slaInfo = getSLAInfo(v);
   const dotClass = alert==='lagging'?'red':alert==='leading'?'blu':'ok';
-  const slaClass = slaInfo.css==='expired'?'red':slaInfo.css==='urgent'?'yel':'grn';
+  const slaClass = slaInfo.pct>1?'red':slaInfo.pct>=0.8?'yel':'grn';
   const typeClass = (dias >= lim.max) ? 'red' : (dias >= lim.max * 0.8) ? 'yel' : 'grn';
 
   const lightBadge = isLight?`<span class="badge-light">L</span>`:'';
@@ -1268,8 +1268,8 @@ function openVTM(asesorName) {
   const rows=vehicles.map(v=>{
     const lim=getServiceLimit(v),slaInfo=getSLAInfo(v),dias=parseFloat(v['dias habiles desde recepcion'])||0;
     const slaFmt=v['sla_entrega']?new Date(v['sla_entrega']).toLocaleDateString('es-MX'):'—';
-    const slaCSS=slaInfo.css==='expired'?'red':slaInfo.css==='urgent'?'yel':'grn';
-    const diasSlaCSS=slaInfo.css==='expired'?'red':slaInfo.css==='urgent'?'yel':'grn';
+    const slaCSS=slaInfo.pct>1?'red':slaInfo.pct>=0.8?'yel':'grn';
+    const diasSlaCSS=slaInfo.pct>1?'red':slaInfo.pct>=0.8?'yel':'grn';
     return `<tr>
       <td class="plate" onclick="openModal('${v['appointment_id']}'); closeVTM()">${v['vehicle_plates']||v['appointment_id']}</td>
       <td>${(v['name_shop']||'—').slice(0,20)}</td>
