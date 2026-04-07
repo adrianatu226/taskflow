@@ -176,9 +176,9 @@ body{font-family:var(--sans);background:var(--bg);color:var(--tx);min-height:100
 .card-sla.safe{background:var(--grnbg);color:var(--grn);}
 .card-msg{font-size:.58rem;color:var(--red);margin-top:.18rem;font-weight:600;}
 .card-msg.blu{color:var(--blu);}
-.card-row{display:flex;align-items:center;justify-content:space-between;gap:.3rem;margin-top:.22rem;}
-.card-row .chip{flex:1;text-align:center;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.card-sep{height:1px;background:rgba(255,255,255,.05);margin:.28rem 0 .06rem;}
+.card-row{display:flex;align-items:center;justify-content:space-between;gap:.25rem;margin-top:.2rem;}
+.card-row .chip{flex:1;text-align:center;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.54rem;}
+.card-sep{height:1px;background:rgba(255,255,255,.05);margin:.25rem 0 .04rem;}
 
 /* TOOLTIP removed */
 
@@ -1054,8 +1054,6 @@ function renderCard(v) {
   const partesBadge = esperandoPartes?`<span class="badge-partes">partes</span>`:'';
   // Badge sinConf only shown outside entrega_sinconf column (that column already conveys it)
   const sinConfBadge = (sinConf && v._phase!=='entrega_sinconf')?`<span title="Taller no ha confirmado salida" style="font-size:.8rem;cursor:help;">⚠️</span>`:'';
-  const msg = v._alertMsg?`<div class="card-msg ${alert==='leading'?'blu':''}">${v._alertMsg}</div>`:'';
-
   const priceEl = (v._phase==='aprobacion'&&price>0)
     ?`<span class="chip price">$${(price/1000).toFixed(0)}k aprob.</span>`
     :`<span></span>`;
@@ -1092,7 +1090,6 @@ function renderCard(v) {
     </div>
     ${hasBottomRow?`<div class="card-row">${priceEl}${upsaleEl}</div>`:''}
     ${confirmedChip}
-    ${msg}
   </div>`;
 }
 
