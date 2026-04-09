@@ -4,8 +4,8 @@
     {
       "name": "Torre Central (Python HTTP Server)",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "3000", "--directory", "."],
-      "port": 3000
+      "runtimeArgs": ["-m", "http.server", "3001", "--directory", "."],
+      "port": 3001
     }
   ]
 }

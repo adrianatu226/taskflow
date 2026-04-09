@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM Aliados — Autolab</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f4f5f7;
+  --white: #ffffff;
+  --border: #e2e5ea;
+  --text: #1a1d23;
+  --text-2: #6b7280;
+  --text-3: #9ca3af;
+  --primary: #2563eb;
+  --primary-light: #eff6ff;
+  --prospecto: #6b7280;
+  --contactado: #3b82f6;
+  --interesado: #f59e0b;
+  --negociacion: #8b5cf6;
+  --aliado: #10b981;
+  --descartado: #ef4444;
+  --radius: 8px;
+  --shadow: 0 1px 3px rgba(0,0,0,.1), 0 1px 2px rgba(0,0,0,.06);
+  --shadow-lg: 0 10px 25px rgba(0,0,0,.15);
+}
+
+body {
+  font-family: 'Syne', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ── LOGIN ── */
+#login-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+}
+.login-card {
+  background: white;
+  border-radius: 16px;
+  padding: 48px;
+  width: 420px;
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+}
+.login-logo { font-weight: 700; font-size: 26px; color: var(--primary); margin-bottom: 4px; }
+.login-subtitle { color: var(--text-2); margin-bottom: 32px; font-size: 13px; }
+.login-card input {
+  width: 100%; padding: 12px 16px; border: 1.5px solid var(--border);
+  border-radius: var(--radius); font-size: 14px; font-family: inherit;
+  margin-bottom: 12px; outline: none; transition: border-color .2s;
+}
+.login-card input:focus { border-color: var(--primary); }
+.login-card .api-input { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+.login-hint { font-size: 11px; color: var(--text-3); margin-bottom: 20px; line-height: 1.6; text-align: left; }
+
+/* ── APP ── */
+#app { display: none; min-height: 100vh; flex-direction: column; }
+#app.visible { display: flex; }
+
+/* ── TOPBAR ── */
+#topbar {
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 1px 3px rgba(0,0,0,.05);
+}
+.topbar-logo { font-weight: 700; font-size: 16px; color: var(--primary); white-space: nowrap; }
+.topbar-logo span { color: var(--text-2); font-weight: 400; font-size: 13px; margin-left: 8px; }
+
+.view-tabs { display: flex; gap: 2px; background: var(--bg); padding: 3px; border-radius: 6px; }
+.view-tab {
+  padding: 5px 14px; border-radius: 4px; cursor: pointer;
+  font-size: 13px; font-weight: 500; color: var(--text-2);
+  transition: all .15s; border: none; background: none; font-family: inherit;
+}
+.view-tab.active { background: white; color: var(--text); box-shadow: var(--shadow); }
+
+.topbar-filters { display: flex; gap: 8px; flex: 1; align-items: center; }
+.filter-input {
+  padding: 6px 12px; border: 1.5px solid var(--border); border-radius: 6px;
+  font-size: 13px; font-family: inherit; outline: none;
+  background: var(--bg); transition: all .2s;
+}
+.filter-input:focus { border-color: var(--primary); background: white; }
+
+.topbar-right { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+.user-chip {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 12px; background: var(--primary-light);
+  border-radius: 20px; font-size: 13px; font-weight: 600; color: var(--primary);
+}
+.user-chip .avatar {
+  width: 24px; height: 24px; background: var(--primary); color: white;
+  border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; font-size: 11px; font-weight: 700;
+}
+
+/* ── BUTTONS ── */
+.btn {
+  padding: 7px 16px; border-radius: 6px; cursor: pointer;
+  font-size: 13px; font-weight: 600; font-family: inherit; border: none;
+  transition: all .15s; display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-primary { background: var(--primary); color: white; }
+.btn-primary:hover { background: #1d4ed8; }
+.btn-ghost { background: none; color: var(--text-2); }
+.btn-ghost:hover { background: var(--bg); color: var(--text); }
+.btn-sm { padding: 5px 12px; font-size: 12px; }
+.btn-danger { background: #fee2e2; color: var(--descartado); border: none; }
+.btn-danger:hover { background: #fecaca; }
+.btn-success { background: #d1fae5; color: var(--aliado); border: none; }
+
+/* ── MAIN ── */
+#main-content { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+
+/* ── KANBAN ── */
+#kanban-view {
+  flex: 1; display: flex; overflow-x: auto;
+  padding: 20px 24px; gap: 12px; align-items: flex-start;
+}
+.stage-col { flex: 0 0 230px; display: flex; flex-direction: column; gap: 8px; }
+.stage-header {
+  padding: 8px 12px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-weight: 600; font-size: 13px;
+}
+.stage-header .count {
+  background: rgba(0,0,0,0.08); padding: 2px 8px;
+  border-radius: 10px; font-size: 12px; font-weight: 700;
+}
+.stage-cards {
+  display: flex; flex-direction: column; gap: 8px;
+  overflow-y: auto; max-height: calc(100vh - 150px); padding-bottom: 8px;
+}
+.taller-card {
+  background: white; border-radius: var(--radius); padding: 12px;
+  box-shadow: var(--shadow); cursor: pointer; transition: all .15s;
+  border-left: 3px solid transparent;
+}
+.taller-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.1); transform: translateY(-1px); }
+.card-name { font-weight: 600; font-size: 13px; margin-bottom: 3px; }
+.card-city { font-size: 12px; color: var(--text-2); margin-bottom: 8px; }
+.card-meta { display: flex; align-items: center; justify-content: space-between; }
+.card-asesor { background: var(--bg); padding: 2px 6px; border-radius: 4px; font-size: 11px; color: var(--text-2); }
+.card-tasks { display: flex; align-items: center; gap: 3px; font-size: 11px; color: var(--text-3); }
+.task-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--primary); }
+.task-dot.overdue { background: var(--descartado); }
+
+[data-stage="prospecto"]   .stage-header { background: #f3f4f6; color: #374151; }
+[data-stage="prospecto"]   .taller-card  { border-left-color: var(--prospecto); }
+[data-stage="contactado"]  .stage-header { background: #eff6ff; color: #1d4ed8; }
+[data-stage="contactado"]  .taller-card  { border-left-color: var(--contactado); }
+[data-stage="interesado"]  .stage-header { background: #fffbeb; color: #b45309; }
+[data-stage="interesado"]  .taller-card  { border-left-color: var(--interesado); }
+[data-stage="negociacion"] .stage-header { background: #f5f3ff; color: #6d28d9; }
+[data-stage="negociacion"] .taller-card  { border-left-color: var(--negociacion); }
+[data-stage="aliado"]      .stage-header { background: #ecfdf5; color: #065f46; }
+[data-stage="aliado"]      .taller-card  { border-left-color: var(--aliado); }
+[data-stage="descartado"]  .stage-header { background: #fef2f2; color: #b91c1c; }
+[data-stage="descartado"]  .taller-card  { border-left-color: var(--descartado); }
+
+/* ── TABLE ── */
+#tabla-view { flex: 1; padding: 20px 24px; overflow-y: auto; }
+.tabla-wrapper { background: white; border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+table { width: 100%; border-collapse: collapse; }
+thead th {
+  padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600;
+  color: var(--text-2); text-transform: uppercase; letter-spacing: .05em;
+  background: var(--bg); border-bottom: 1px solid var(--border);
+}
+tbody tr { border-bottom: 1px solid var(--border); cursor: pointer; transition: background .1s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: #fafbfc; }
+tbody td { padding: 12px 16px; font-size: 13px; }
+
+.stage-badge {
+  display: inline-flex; align-items: center;
+  padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;
+}
+.stage-badge.prospecto   { background: #f3f4f6; color: #374151; }
+.stage-badge.contactado  { background: #eff6ff; color: #1d4ed8; }
+.stage-badge.interesado  { background: #fffbeb; color: #b45309; }
+.stage-badge.negociacion { background: #f5f3ff; color: #6d28d9; }
+.stage-badge.aliado      { background: #ecfdf5; color: #065f46; }
+.stage-badge.descartado  { background: #fef2f2; color: #b91c1c; }
+
+/* ── MODAL ── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+  z-index: 200; display: flex; align-items: center;
+  justify-content: center; padding: 24px; backdrop-filter: blur(2px);
+}
+.modal-overlay.hidden { display: none; }
+.modal {
+  background: white; border-radius: 16px; width: 100%; max-width: 720px;
+  max-height: 90vh; display: flex; flex-direction: column;
+  box-shadow: var(--shadow-lg);
+}
+.modal-header {
+  padding: 20px 24px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+}
+.modal-title { font-size: 18px; font-weight: 700; }
+.modal-subtitle { font-size: 13px; color: var(--text-2); margin-top: 2px; }
+.modal-header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+.modal-tabs { display: flex; border-bottom: 1px solid var(--border); padding: 0 24px; }
+.modal-tab {
+  padding: 10px 16px; font-size: 13px; font-weight: 500; color: var(--text-2);
+  cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  transition: all .15s; background: none; border-top: none;
+  border-left: none; border-right: none; font-family: inherit;
+}
+.modal-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+.modal-body { flex: 1; overflow-y: auto; padding: 20px 24px; }
+.modal-footer {
+  padding: 16px 24px; border-top: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+/* ── STAGE SELECTOR ── */
+.stage-selector { display: flex; gap: 4px; flex-wrap: wrap; }
+.stage-option {
+  padding: 3px 10px; border-radius: 10px; font-size: 11px; font-weight: 600;
+  cursor: pointer; border: 2px solid transparent; transition: all .15s; font-family: inherit;
+}
+.stage-option.prospecto   { background: #f3f4f6; color: #374151; }
+.stage-option.contactado  { background: #eff6ff; color: #1d4ed8; }
+.stage-option.interesado  { background: #fffbeb; color: #b45309; }
+.stage-option.negociacion { background: #f5f3ff; color: #6d28d9; }
+.stage-option.aliado      { background: #ecfdf5; color: #065f46; }
+.stage-option.descartado  { background: #fef2f2; color: #b91c1c; }
+.stage-option.selected.prospecto   { border-color: var(--prospecto); }
+.stage-option.selected.contactado  { border-color: var(--contactado); }
+.stage-option.selected.interesado  { border-color: var(--interesado); }
+.stage-option.selected.negociacion { border-color: var(--negociacion); }
+.stage-option.selected.aliado      { border-color: var(--aliado); }
+.stage-option.selected.descartado  { border-color: var(--descartado); }
+
+/* ── FORMS ── */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-group.full { grid-column: 1 / -1; }
+.form-label { font-size: 11px; font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: .04em; }
+.form-input, .form-select, .form-textarea {
+  padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 6px;
+  font-size: 13px; font-family: inherit; outline: none;
+  transition: border-color .2s; background: white; color: var(--text);
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--primary); }
+.form-textarea { resize: vertical; min-height: 80px; }
+
+/* ── SECTION HEADERS ── */
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.section-title { font-size: 12px; font-weight: 700; color: var(--text); text-transform: uppercase; letter-spacing: .05em; }
+
+/* ── INFO TAB ── */
+.info-section { margin-bottom: 24px; }
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.info-item { display: flex; flex-direction: column; gap: 2px; }
+.info-item-label { font-size: 11px; color: var(--text-3); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.info-item-value { font-size: 13px; color: var(--text); font-weight: 500; }
+
+/* ── CONTACTS ── */
+.contact-list { display: flex; flex-direction: column; gap: 8px; }
+.contact-card {
+  background: var(--bg); border-radius: var(--radius);
+  padding: 12px 16px; display: flex; align-items: center; gap: 12px;
+}
+.contact-avatar {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--primary); color: white; display: flex;
+  align-items: center; justify-content: center;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.contact-info { flex: 1; }
+.contact-name { font-weight: 600; font-size: 13px; }
+.contact-cargo { font-size: 12px; color: var(--text-2); }
+.contact-details { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+
+/* ── ACTIVITIES ── */
+.add-activity-box {
+  background: var(--bg); border-radius: var(--radius);
+  padding: 14px; margin-bottom: 20px;
+}
+.tipo-pills { display: flex; gap: 6px; margin-bottom: 10px; }
+.tipo-pill {
+  padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;
+  cursor: pointer; border: 1.5px solid var(--border); background: white;
+  color: var(--text-2); transition: all .15s; font-family: inherit;
+}
+.tipo-pill.active { border-color: var(--primary); background: var(--primary); color: white; }
+.activity-list { display: flex; flex-direction: column; gap: 14px; }
+.activity-item { display: flex; gap: 12px; align-items: flex-start; }
+.activity-icon {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; flex-shrink: 0; background: var(--bg);
+}
+.activity-content { flex: 1; }
+.activity-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px; }
+.activity-user { font-weight: 600; font-size: 13px; }
+.activity-date { font-size: 11px; color: var(--text-3); }
+.activity-text { font-size: 13px; color: var(--text-2); }
+
+/* ── TASKS ── */
+.task-list { display: flex; flex-direction: column; gap: 8px; }
+.task-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; background: var(--bg);
+  border-radius: var(--radius); transition: opacity .2s;
+}
+.task-item.done { opacity: 0.5; }
+.task-check {
+  width: 20px; height: 20px; border: 2px solid var(--border); border-radius: 5px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: all .15s; font-size: 12px; font-weight: 700;
+}
+.task-check.checked { background: var(--aliado); border-color: var(--aliado); color: white; }
+.task-content { flex: 1; }
+.task-desc { font-size: 13px; font-weight: 500; }
+.task-desc.done { text-decoration: line-through; color: var(--text-3); }
+.task-meta { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+.task-meta.overdue { color: var(--descartado); font-weight: 600; }
+
+/* ── UTILS ── */
+.loading-state {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 60px; color: var(--text-3); gap: 12px;
+}
+.spinner {
+  width: 32px; height: 32px; border: 3px solid var(--border);
+  border-top-color: var(--primary); border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.empty-state { text-align: center; padding: 32px; color: var(--text-3); font-size: 13px; }
+
+.notif {
+  position: fixed; bottom: 24px; right: 24px;
+  background: #1a1d23; color: white; padding: 12px 20px;
+  border-radius: 8px; font-size: 13px; font-weight: 500;
+  box-shadow: var(--shadow-lg); z-index: 999;
+  transform: translateY(100px); opacity: 0; transition: all .3s;
+}
+.notif.show { transform: translateY(0); opacity: 1; }
+.notif.success { background: var(--aliado); }
+.notif.error { background: var(--descartado); }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+.divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════ LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">Autolab CRM</div>
+    <div class="login-subtitle">Red de Aliados Estratégicos</div>
+    <input type="text" id="login-name" placeholder="Tu nombre" autocomplete="off">
+    <input type="text" id="login-url" class="api-input" placeholder="URL del Apps Script (deployment URL)">
+    <div class="login-hint">
+      Crea el Sheet → Extensions → Apps Script → pega el código GS → Deploy → Manage Deployments → copia la URL
+    </div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px;font-size:14px;" onclick="doLogin()">
+      Entrar →
+    </button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════ APP -->
+<div id="app">
+  <div id="topbar">
+    <div class="topbar-logo">Autolab CRM <span>Aliados</span></div>
+    <div class="view-tabs">
+      <button class="view-tab active" onclick="setView('kanban')">Pipeline</button>
+      <button class="view-tab" onclick="setView('tabla')">Lista</button>
+    </div>
+    <div class="topbar-filters">
+      <input class="filter-input" type="text" id="search-input" placeholder="🔍 Buscar taller..." oninput="applyFilters()" style="width:200px;">
+      <select class="filter-input" id="filter-asesor" onchange="applyFilters()">
+        <option value="">Todos los asesores</option>
+      </select>
+      <select class="filter-input" id="filter-etapa" onchange="applyFilters()">
+        <option value="">Todas las etapas</option>
+        <option value="prospecto">Prospecto</option>
+        <option value="contactado">Contactado</option>
+        <option value="interesado">Interesado</option>
+        <option value="negociacion">En Negociación</option>
+        <option value="aliado">Aliado</option>
+        <option value="descartado">Descartado</option>
+      </select>
+    </div>
+    <div class="topbar-right">
+      <button class="btn btn-primary btn-sm" onclick="openAddTaller()">+ Nuevo taller</button>
+      <button class="btn btn-ghost btn-sm" onclick="loadData()" title="Recargar datos">↻</button>
+      <div class="user-chip">
+        <div class="avatar" id="user-avatar"></div>
+        <span id="user-name-display"></span>
+      </div>
+    </div>
+  </div>
+
+  <div id="main-content">
+    <div id="kanban-view">
+      <div class="loading-state"><div class="spinner"></div><span>Cargando datos...</span></div>
+    </div>
+    <div id="tabla-view" style="display:none;">
+      <div class="loading-state"><div class="spinner"></div><span>Cargando datos...</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════ MODAL: TALLER DETALLE -->
+<div class="modal-overlay hidden" id="taller-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modal-taller-name">—</div>
+        <div class="modal-subtitle" id="modal-taller-city">—</div>
+      </div>
+      <div class="modal-header-right">
+        <div class="stage-selector" id="modal-stage-selector"></div>
+        <button class="btn btn-ghost btn-sm" onclick="closeModal('taller-modal')" style="padding:4px 8px;font-size:16px;">✕</button>
+      </div>
+    </div>
+    <div class="modal-tabs">
+      <button class="modal-tab active" onclick="setModalTab('info')">Info</button>
+      <button class="modal-tab" onclick="setModalTab('contactos')">Contactos</button>
+      <button class="modal-tab" onclick="setModalTab('actividades')">Actividades</button>
+      <button class="modal-tab" onclick="setModalTab('tareas')">Tareas</button>
+    </div>
+    <div class="modal-body" id="modal-body">
+      <div class="loading-state"><div class="spinner"></div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" onclick="confirmDeleteTaller()">Eliminar taller</button>
+      <span style="font-size:12px;color:var(--text-3)" id="modal-last-activity"></span>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════ MODAL: NUEVO TALLER -->
+<div class="modal-overlay hidden" id="add-taller-modal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <div class="modal-title">Nuevo Taller</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('add-taller-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Nombre *</label>
+          <input class="form-input" id="new-nombre" placeholder="Taller Los Pinos">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ciudad *</label>
+          <input class="form-input" id="new-ciudad" placeholder="Monterrey, NL">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tipo de Servicio</label>
+          <select class="form-select" id="new-tipo">
+            <option value="">Sin especificar</option>
+            <option value="Mecánica General">Mecánica General</option>
+            <option value="Colisión / Hojalatería">Colisión / Hojalatería</option>
+            <option value="Eléctrico / Electrónico">Eléctrico / Electrónico</option>
+            <option value="Multimarca">Multimarca</option>
+            <option value="Concesionario">Concesionario</option>
+            <option value="Llantería">Llantería</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Etapa inicial</label>
+          <select class="form-select" id="new-etapa">
+            <option value="prospecto">Prospecto</option>
+            <option value="contactado">Contactado</option>
+            <option value="interesado">Interesado</option>
+            <option value="negociacion">En Negociación</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Dirección</label>
+          <input class="form-input" id="new-direccion" placeholder="Av. Insurgentes 123">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Asesor Asignado</label>
+          <select class="form-select" id="new-asesor"></select>
+        </div>
+        <div class="form-group full">
+          <label class="form-label">Notas iniciales</label>
+          <textarea class="form-textarea" id="new-notas" placeholder="Información relevante del taller..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:flex-end;gap:8px;">
+      <button class="btn btn-ghost" onclick="closeModal('add-taller-modal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveTaller()">Crear Taller</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════ MODAL: AGREGAR CONTACTO -->
+<div class="modal-overlay hidden" id="add-contact-modal">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-header">
+      <div class="modal-title">Agregar Contacto</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('add-contact-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Nombre *</label>
+          <input class="form-input" id="con-nombre" placeholder="Juan Pérez">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Cargo</label>
+          <input class="form-input" id="con-cargo" placeholder="Dueño / Gerente">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Teléfono</label>
+          <input class="form-input" id="con-tel" placeholder="+52 81 1234 5678">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input class="form-input" id="con-email" type="email" placeholder="juan@taller.com">
+        </div>
+        <div class="form-group full">
+          <label class="form-label">Notas</label>
+          <textarea class="form-textarea" id="con-notas" placeholder="Observaciones sobre este contacto..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:flex-end;gap:8px;">
+      <button class="btn btn-ghost" onclick="closeModal('add-contact-modal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveContact()">Agregar Contacto</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════ MODAL: NUEVA TAREA -->
+<div class="modal-overlay hidden" id="add-task-modal">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <div class="modal-title">Nueva Tarea</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('add-task-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label class="form-label">Descripción *</label>
+          <input class="form-input" id="task-desc" placeholder="Llamar para dar seguimiento a la propuesta...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fecha Límite</label>
+          <input class="form-input" id="task-due" type="date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Asignado a</label>
+          <select class="form-select" id="task-asignado"></select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:flex-end;gap:8px;">
+      <button class="btn btn-ghost" onclick="closeModal('add-task-modal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveTask()">Crear Tarea</button>
+    </div>
+  </div>
+</div>
+
+<div class="notif" id="notif"></div>
+
+<!-- ════════════════════════════════════════ SCRIPT -->
+<script>
+// ══════════════════════════════════════════
+// CONSTANTS & STATE
+// ══════════════════════════════════════════
+const CFG_KEY = 'crm_aliados_cfg_v1';
+
+let CFG = {};
+let state = {
+  talleres: [],
+  usuarios: [],
+  currentView: 'kanban',
+  currentTaller: null,
+  currentModalTab: 'info',
+  contactos: [],
+  actividades: [],
+  tareas: [],
+  filters: { search: '', asesor: '', etapa: '' }
+};
+
+const STAGES = [
+  { id: 'prospecto',   label: 'Prospecto' },
+  { id: 'contactado',  label: 'Contactado' },
+  { id: 'interesado',  label: 'Interesado' },
+  { id: 'negociacion', label: 'En Negociación' },
+  { id: 'aliado',      label: 'Aliado ✓' },
+  { id: 'descartado',  label: 'Descartado' },
+];
+
+const TIPO_ICONS = { llamada: '📞', email: '📧', reunion: '🤝', nota: '📝' };
+
+// ══════════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════════
+function doLogin() {
+  const nombre = document.getElementById('login-name').value.trim();
+  const url    = document.getElementById('login-url').value.trim();
+  if (!nombre) { showNotif('Ingresa tu nombre', 'error'); return; }
+  if (!url)    { showNotif('Ingresa la URL del Apps Script', 'error'); return; }
+  CFG = { nombre, apiUrl: url };
+  localStorage.setItem(CFG_KEY, JSON.stringify(CFG));
+  startApp();
+}
+
+function startApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').classList.add('visible');
+  document.getElementById('user-name-display').textContent = CFG.nombre;
+  document.getElementById('user-avatar').textContent = CFG.nombre.charAt(0).toUpperCase();
+  loadData();
+}
+
+// ══════════════════════════════════════════
+// API
+// ══════════════════════════════════════════
+async function api(params) {
+  const url = new URL(CFG.apiUrl);
+  Object.entries(params).forEach(([k, v]) =>
+    url.searchParams.set(k, typeof v === 'object' ? JSON.stringify(v) : String(v))
+  );
+  const res  = await fetch(url.toString());
+  const text = await res.text();
+  try { return JSON.parse(text); }
+  catch(e) { throw new Error('Respuesta inválida del servidor: ' + text.substring(0, 100)); }
+}
+
+async function loadData() {
+  showLoading();
+  try {
+    const data = await api({ action: 'getAll' });
+    if (data.error) throw new Error(data.error);
+    state.talleres = data.talleres || [];
+    state.usuarios = data.usuarios || [];
+    populateUserFilters();
+    render();
+  } catch(e) {
+    console.error(e);
+    showNotif('Error al cargar datos: ' + e.message, 'error');
+  }
+}
+
+// ══════════════════════════════════════════
+// FILTERS & RENDER
+// ══════════════════════════════════════════
+function applyFilters() {
+  state.filters.search = document.getElementById('search-input').value.toLowerCase().trim();
+  state.filters.asesor = document.getElementById('filter-asesor').value;
+  state.filters.etapa  = document.getElementById('filter-etapa').value;
+  render();
+}
+
+function filteredTalleres() {
+  return state.talleres.filter(t => {
+    const s = state.filters.search;
+    if (s && !t.nombre.toLowerCase().includes(s) && !(t.ciudad||'').toLowerCase().includes(s)) return false;
+    if (state.filters.asesor && t.asesor !== state.filters.asesor) return false;
+    if (state.filters.etapa  && t.etapa  !== state.filters.etapa)  return false;
+    return true;
+  });
+}
+
+function render() {
+  if (state.currentView === 'kanban') renderKanban();
+  else renderTabla();
+}
+
+function showLoading() {
+  document.getElementById('kanban-view').innerHTML =
+    '<div class="loading-state"><div class="spinner"></div><span>Cargando...</span></div>';
+  document.getElementById('tabla-view').innerHTML =
+    '<div class="loading-state"><div class="spinner"></div><span>Cargando...</span></div>';
+}
+
+function renderKanban() {
+  const talleres  = filteredTalleres();
+  const container = document.getElementById('kanban-view');
+  container.innerHTML = STAGES.map(stage => {
+    const cards = talleres.filter(t => t.etapa === stage.id);
+    return `
+      <div class="stage-col" data-stage="${stage.id}">
+        <div class="stage-header">
+          <span>${stage.label}</span>
+          <span class="count">${cards.length}</span>
+        </div>
+        <div class="stage-cards">
+          ${cards.length === 0
+            ? '<div class="empty-state" style="padding:16px;font-size:12px;">Sin talleres</div>'
+            : cards.map(renderCard).join('')}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderCard(t) {
+  const pending = t.tareas_pendientes || 0;
+  const overdue = t.tareas_vencidas  || 0;
+  const dots = pending > 0
+    ? `<span class="card-tasks">
+        ${Array.from({length: Math.min(pending, 5)}, (_, i) =>
+          `<span class="task-dot ${i < overdue ? 'overdue' : ''}"></span>`).join('')}
+        <span style="margin-left:3px">${pending}</span>
+       </span>`
+    : '';
+  return `
+    <div class="taller-card" onclick="openTaller('${t.id}')">
+      <div class="card-name">${esc(t.nombre)}</div>
+      <div class="card-city">${esc(t.ciudad) || '—'}</div>
+      <div class="card-meta">
+        <span class="card-asesor">${esc(t.asesor) || 'Sin asignar'}</span>
+        ${dots}
+      </div>
+    </div>`;
+}
+
+function renderTabla() {
+  const talleres  = filteredTalleres();
+  const container = document.getElementById('tabla-view');
+  container.innerHTML = `
+    <div class="tabla-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Taller</th>
+            <th>Ciudad</th>
+            <th>Etapa</th>
+            <th>Asesor</th>
+            <th>Tipo</th>
+            <th>Última Actividad</th>
+            <th>Tareas pendientes</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${talleres.length === 0
+            ? `<tr><td colspan="7"><div class="empty-state">Sin resultados</div></td></tr>`
+            : talleres.map(t => `
+              <tr onclick="openTaller('${t.id}')">
+                <td><strong>${esc(t.nombre)}</strong></td>
+                <td>${esc(t.ciudad) || '—'}</td>
+                <td><span class="stage-badge ${t.etapa}">${STAGES.find(s=>s.id===t.etapa)?.label || t.etapa}</span></td>
+                <td>${esc(t.asesor) || '—'}</td>
+                <td style="color:var(--text-2)">${esc(t.tipo_servicio) || '—'}</td>
+                <td style="font-size:12px;color:var(--text-2)">${t.ultima_actividad ? formatDate(t.ultima_actividad) : '—'}</td>
+                <td>${t.tareas_pendientes > 0
+                  ? `<span style="font-size:12px;font-weight:700;color:${t.tareas_vencidas > 0 ? 'var(--descartado)' : 'var(--primary)'}">
+                      ${t.tareas_pendientes} pendiente${t.tareas_pendientes > 1 ? 's' : ''}
+                      ${t.tareas_vencidas > 0 ? `(${t.tareas_vencidas} vencida${t.tareas_vencidas>1?'s':''})` : ''}
+                     </span>`
+                  : '<span style="color:var(--text-3);font-size:12px">—</span>'}</td>
+              </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function populateUserFilters() {
+  // Filter select
+  const sel = document.getElementById('filter-asesor');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Todos los asesores</option>' +
+    state.usuarios.map(u => `<option value="${esc(u.nombre)}" ${u.nombre === cur ? 'selected' : ''}>${esc(u.nombre)}</option>`).join('');
+
+  // New taller & task dropdowns
+  ['new-asesor', 'task-asignado'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '<option value="">Sin asignar</option>' +
+      state.usuarios.map(u => `<option value="${esc(u.nombre)}">${esc(u.nombre)}</option>`).join('');
+  });
+}
+
+// ══════════════════════════════════════════
+// VIEW TOGGLE
+// ══════════════════════════════════════════
+function setView(view) {
+  state.currentView = view;
+  document.querySelectorAll('.view-tab').forEach((t, i) =>
+    t.classList.toggle('active', ['kanban','tabla'][i] === view));
+  document.getElementById('kanban-view').style.display = view === 'kanban' ? 'flex' : 'none';
+  document.getElementById('tabla-view').style.display  = view === 'tabla'  ? 'block' : 'none';
+  render();
+}
+
+// ══════════════════════════════════════════
+// TALLER MODAL
+// ══════════════════════════════════════════
+async function openTaller(id) {
+  state.currentTaller = state.talleres.find(t => t.id === id);
+  if (!state.currentTaller) return;
+  const t = state.currentTaller;
+
+  document.getElementById('modal-taller-name').textContent = t.nombre;
+  document.getElementById('modal-taller-city').textContent =
+    [t.ciudad, t.tipo_servicio].filter(Boolean).join(' · ') || '—';
+
+  const sel = document.getElementById('modal-stage-selector');
+  sel.innerHTML = STAGES.map(s => `
+    <button class="stage-option ${s.id} ${t.etapa === s.id ? 'selected' : ''}"
+      onclick="changeStage('${id}','${s.id}')">${s.label}</button>`).join('');
+
+  document.getElementById('modal-last-activity').textContent =
+    t.ultima_actividad ? 'Última actividad: ' + formatDate(t.ultima_actividad) : '';
+
+  document.getElementById('taller-modal').classList.remove('hidden');
+  setModalTab('info');
+
+  // Load detail async
+  try {
+    const detail = await api({ action: 'getTaller', id });
+    state.contactos   = detail.contactos   || [];
+    state.actividades = detail.actividades || [];
+    state.tareas      = detail.tareas      || [];
+    renderModalTab(state.currentModalTab);
+  } catch(e) {
+    showNotif('Error al cargar detalle', 'error');
+  }
+}
+
+function setModalTab(tab) {
+  state.currentModalTab = tab;
+  document.querySelectorAll('.modal-tab').forEach((btn, i) =>
+    btn.classList.toggle('active', ['info','contactos','actividades','tareas'][i] === tab));
+  renderModalTab(tab);
+}
+
+function renderModalTab(tab) {
+  const body = document.getElementById('modal-body');
+  const t    = state.currentTaller;
+  if (!t) return;
+
+  if (tab === 'info') {
+    body.innerHTML = `
+      <div class="info-section">
+        <div class="info-grid">
+          <div class="info-item"><span class="info-item-label">Ciudad</span><span class="info-item-value">${esc(t.ciudad)||'—'}</span></div>
+          <div class="info-item"><span class="info-item-label">Tipo de Servicio</span><span class="info-item-value">${esc(t.tipo_servicio)||'—'}</span></div>
+          <div class="info-item"><span class="info-item-label">Dirección</span><span class="info-item-value">${esc(t.direccion)||'—'}</span></div>
+          <div class="info-item"><span class="info-item-label">Fecha de ingreso</span><span class="info-item-value">${t.fecha_creacion ? formatDate(t.fecha_creacion) : '—'}</span></div>
+          <div class="info-item"><span class="info-item-label">Creado por</span><span class="info-item-value">${esc(t.creado_por)||'—'}</span></div>
+        </div>
+      </div>
+
+      <div class="info-section">
+        <div class="section-header"><span class="section-title">Asesor asignado</span></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select class="form-select" id="info-asesor" style="flex:1">
+            <option value="">Sin asignar</option>
+            ${state.usuarios.map(u => `<option value="${esc(u.nombre)}" ${u.nombre===t.asesor?'selected':''}>${esc(u.nombre)}</option>`).join('')}
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="saveAsesor()">Actualizar</button>
+        </div>
+      </div>
+
+      <div class="info-section">
+        <div class="section-header"><span class="section-title">Notas</span></div>
+        <textarea class="form-textarea" id="info-notas" style="width:100%;min-height:100px">${esc(t.notas)||''}</textarea>
+        <div style="display:flex;justify-content:flex-end;margin-top:8px">
+          <button class="btn btn-primary btn-sm" onclick="saveNotas()">Guardar notas</button>
+        </div>
+      </div>`;
+  }
+
+  else if (tab === 'contactos') {
+    body.innerHTML = `
+      <div class="section-header">
+        <span class="section-title">Contactos (${state.contactos.length})</span>
+        <button class="btn btn-primary btn-sm" onclick="openAddContact()">+ Agregar contacto</button>
+      </div>
+      <div class="contact-list">
+        ${state.contactos.length === 0
+          ? '<div class="empty-state">Sin contactos registrados</div>'
+          : state.contactos.map(c => `
+            <div class="contact-card">
+              <div class="contact-avatar">${c.nombre.charAt(0).toUpperCase()}</div>
+              <div class="contact-info">
+                <div class="contact-name">${esc(c.nombre)}</div>
+                <div class="contact-cargo">${esc(c.cargo)||'—'}</div>
+                <div class="contact-details">${[c.telefono, c.email].filter(Boolean).map(esc).join(' · ')||'Sin datos de contacto'}</div>
+                ${c.notas ? `<div style="font-size:12px;color:var(--text-3);margin-top:4px">${esc(c.notas)}</div>` : ''}
+              </div>
+            </div>`).join('')}
+      </div>`;
+  }
+
+  else if (tab === 'actividades') {
+    body.innerHTML = `
+      <div class="add-activity-box">
+        <div class="tipo-pills">
+          ${Object.entries(TIPO_ICONS).map(([tipo, icon], i) => `
+            <button class="tipo-pill ${i===0?'active':''}" onclick="selectTipo(this,'${tipo}')">
+              ${icon} ${tipo.charAt(0).toUpperCase()+tipo.slice(1)}
+            </button>`).join('')}
+        </div>
+        <textarea class="form-textarea" id="act-text" placeholder="Describe la actividad realizada..." style="width:100%;margin-bottom:8px"></textarea>
+        <div style="display:flex;justify-content:flex-end">
+          <button class="btn btn-primary btn-sm" onclick="saveActividad()">Registrar actividad</button>
+        </div>
+      </div>
+      <div class="activity-list">
+        ${state.actividades.length === 0
+          ? '<div class="empty-state">Sin actividades registradas aún</div>'
+          : state.actividades.map(a => `
+            <div class="activity-item">
+              <div class="activity-icon">${TIPO_ICONS[a.tipo]||'📝'}</div>
+              <div class="activity-content">
+                <div class="activity-header">
+                  <span class="activity-user">${esc(a.usuario)}</span>
+                  <span class="activity-date">${formatDate(a.fecha)}</span>
+                </div>
+                <div class="activity-text">${esc(a.descripcion)}</div>
+              </div>
+            </div>`).join('')}
+      </div>`;
+  }
+
+  else if (tab === 'tareas') {
+    const pending = state.tareas.filter(t => t.estado !== 'completada');
+    const done    = state.tareas.filter(t => t.estado === 'completada');
+    body.innerHTML = `
+      <div class="section-header">
+        <span class="section-title">Tareas (${pending.length} pendientes)</span>
+        <button class="btn btn-primary btn-sm" onclick="openAddTask()">+ Nueva tarea</button>
+      </div>
+      <div class="task-list">
+        ${state.tareas.length === 0
+          ? '<div class="empty-state">Sin tareas creadas</div>'
+          : [...pending, ...done].map(task => {
+              const isOverdue = task.vencimiento && new Date(task.vencimiento) < new Date() && task.estado !== 'completada';
+              const isDone    = task.estado === 'completada';
+              return `
+                <div class="task-item ${isDone?'done':''}">
+                  <div class="task-check ${isDone?'checked':''}" onclick="toggleTask('${task.id}')">
+                    ${isDone ? '✓' : ''}
+                  </div>
+                  <div class="task-content">
+                    <div class="task-desc ${isDone?'done':''}">${esc(task.descripcion)}</div>
+                    <div class="task-meta ${isOverdue?'overdue':''}">
+                      ${[task.asignado_a, task.vencimiento ? formatDate(task.vencimiento) : null, isOverdue ? '⚠ Vencida' : null].filter(Boolean).join(' · ')}
+                    </div>
+                  </div>
+                </div>`;
+            }).join('')}
+      </div>`;
+  }
+}
+
+function selectTipo(btn, tipo) {
+  document.querySelectorAll('.tipo-pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ══════════════════════════════════════════
+// ACTIONS
+// ══════════════════════════════════════════
+async function changeStage(tallerId, newStage) {
+  try {
+    await api({ action: 'updateTaller', id: tallerId, field: 'etapa', value: newStage });
+    const t = state.talleres.find(x => x.id === tallerId);
+    if (t) t.etapa = newStage;
+    if (state.currentTaller) state.currentTaller.etapa = newStage;
+    document.querySelectorAll('.stage-option').forEach(el =>
+      el.classList.toggle('selected', el.classList.contains(newStage)));
+    render();
+    showNotif('Etapa: ' + (STAGES.find(s=>s.id===newStage)?.label || newStage), 'success');
+  } catch(e) { showNotif('Error al actualizar etapa', 'error'); }
+}
+
+async function saveNotas() {
+  const notas = document.getElementById('info-notas')?.value || '';
+  try {
+    await api({ action: 'updateTaller', id: state.currentTaller.id, field: 'notas', value: notas });
+    state.currentTaller.notas = notas;
+    state.talleres.find(t => t.id === state.currentTaller.id).notas = notas;
+    showNotif('Notas guardadas', 'success');
+  } catch(e) { showNotif('Error al guardar', 'error'); }
+}
+
+async function saveAsesor() {
+  const asesor = document.getElementById('info-asesor')?.value || '';
+  try {
+    await api({ action: 'updateTaller', id: state.currentTaller.id, field: 'asesor', value: asesor });
+    state.currentTaller.asesor = asesor;
+    state.talleres.find(t => t.id === state.currentTaller.id).asesor = asesor;
+    render();
+    showNotif('Asesor actualizado', 'success');
+  } catch(e) { showNotif('Error al actualizar', 'error'); }
+}
+
+async function saveActividad() {
+  const activePill = document.querySelector('.tipo-pill.active');
+  const tipoText   = activePill?.textContent.trim().toLowerCase() || 'nota';
+  const tipo       = Object.keys(TIPO_ICONS).find(k => tipoText.includes(k)) || 'nota';
+  const descripcion = document.getElementById('act-text')?.value.trim();
+  if (!descripcion) { showNotif('Escribe una descripción', 'error'); return; }
+
+  try {
+    const res = await api({ action: 'addActividad', taller_id: state.currentTaller.id, tipo, descripcion, usuario: CFG.nombre });
+    if (res.error) throw new Error(res.error);
+    state.actividades.unshift({ id: res.id, tipo, descripcion, usuario: CFG.nombre, fecha: new Date().toISOString() });
+    const t = state.talleres.find(x => x.id === state.currentTaller.id);
+    if (t) t.ultima_actividad = new Date().toISOString();
+    state.currentTaller.ultima_actividad = new Date().toISOString();
+    document.getElementById('modal-last-activity').textContent = 'Última actividad: ' + formatDate(new Date().toISOString());
+    renderModalTab('actividades');
+    showNotif('Actividad registrada', 'success');
+  } catch(e) { showNotif('Error: ' + e.message, 'error'); }
+}
+
+function openAddContact() {
+  document.getElementById('add-contact-modal').classList.remove('hidden');
+}
+
+async function saveContact() {
+  const nombre = document.getElementById('con-nombre')?.value.trim();
+  if (!nombre) { showNotif('Ingresa el nombre del contacto', 'error'); return; }
+  const data = {
+    taller_id: state.currentTaller.id,
+    nombre,
+    cargo:    document.getElementById('con-cargo')?.value.trim(),
+    telefono: document.getElementById('con-tel')?.value.trim(),
+    email:    document.getElementById('con-email')?.value.trim(),
+    notas:    document.getElementById('con-notas')?.value.trim(),
+  };
+  try {
+    const res = await api({ action: 'addContacto', ...data });
+    if (res.error) throw new Error(res.error);
+    state.contactos.push({ ...data, id: res.id });
+    closeModal('add-contact-modal');
+    ['con-nombre','con-cargo','con-tel','con-email','con-notas'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
+    renderModalTab('contactos');
+    showNotif('Contacto agregado', 'success');
+  } catch(e) { showNotif('Error: ' + e.message, 'error'); }
+}
+
+function openAddTask() {
+  const ta = document.getElementById('task-asignado');
+  ta.innerHTML = '<option value="">Sin asignar</option>' +
+    state.usuarios.map(u => `<option value="${esc(u.nombre)}">${esc(u.nombre)}</option>`).join('');
+  // Default: today + 3 days
+  const d = new Date(); d.setDate(d.getDate() + 3);
+  document.getElementById('task-due').value = d.toISOString().split('T')[0];
+  document.getElementById('add-task-modal').classList.remove('hidden');
+}
+
+async function saveTask() {
+  const descripcion = document.getElementById('task-desc')?.value.trim();
+  if (!descripcion) { showNotif('Escribe una descripción', 'error'); return; }
+  const data = {
+    taller_id:   state.currentTaller.id,
+    descripcion,
+    vencimiento: document.getElementById('task-due')?.value,
+    asignado_a:  document.getElementById('task-asignado')?.value,
+    creado_por:  CFG.nombre,
+    estado:      'pendiente',
+  };
+  try {
+    const res = await api({ action: 'addTarea', ...data });
+    if (res.error) throw new Error(res.error);
+    state.tareas.unshift({ ...data, id: res.id });
+    const t = state.talleres.find(x => x.id === state.currentTaller.id);
+    if (t) t.tareas_pendientes = (t.tareas_pendientes || 0) + 1;
+    closeModal('add-task-modal');
+    document.getElementById('task-desc').value = '';
+    renderModalTab('tareas');
+    showNotif('Tarea creada', 'success');
+  } catch(e) { showNotif('Error: ' + e.message, 'error'); }
+}
+
+async function toggleTask(taskId) {
+  const task = state.tareas.find(t => t.id === taskId);
+  if (!task) return;
+  const newEstado = task.estado === 'completada' ? 'pendiente' : 'completada';
+  try {
+    await api({ action: 'updateTarea', id: taskId, estado: newEstado });
+    task.estado = newEstado;
+    const t = state.talleres.find(x => x.id === state.currentTaller.id);
+    if (t) {
+      t.tareas_pendientes = state.tareas.filter(x => x.estado !== 'completada').length;
+      t.tareas_vencidas   = state.tareas.filter(x => x.estado !== 'completada' && x.vencimiento && new Date(x.vencimiento) < new Date()).length;
+    }
+    renderModalTab('tareas');
+  } catch(e) { showNotif('Error al actualizar', 'error'); }
+}
+
+function openAddTaller() {
+  const sel = document.getElementById('new-asesor');
+  sel.innerHTML = '<option value="">Sin asignar</option>' +
+    state.usuarios.map(u => `<option value="${esc(u.nombre)}">${esc(u.nombre)}</option>`).join('');
+  document.getElementById('add-taller-modal').classList.remove('hidden');
+}
+
+async function saveTaller() {
+  const nombre = document.getElementById('new-nombre')?.value.trim();
+  const ciudad = document.getElementById('new-ciudad')?.value.trim();
+  if (!nombre) { showNotif('El nombre es requerido', 'error'); return; }
+  if (!ciudad) { showNotif('La ciudad es requerida', 'error');  return; }
+  const data = {
+    nombre, ciudad,
+    tipo_servicio: document.getElementById('new-tipo')?.value,
+    etapa:         document.getElementById('new-etapa')?.value || 'prospecto',
+    direccion:     document.getElementById('new-direccion')?.value.trim(),
+    asesor:        document.getElementById('new-asesor')?.value,
+    notas:         document.getElementById('new-notas')?.value.trim(),
+    creado_por:    CFG.nombre,
+  };
+  try {
+    const res = await api({ action: 'addTaller', data: JSON.stringify(data) });
+    if (res.error) throw new Error(res.error);
+    state.talleres.push({ ...data, id: res.id, tareas_pendientes: 0, tareas_vencidas: 0 });
+    closeModal('add-taller-modal');
+    ['new-nombre','new-ciudad','new-direccion','new-notas'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
+    render();
+    showNotif('Taller creado', 'success');
+  } catch(e) { showNotif('Error: ' + e.message, 'error'); }
+}
+
+function confirmDeleteTaller() {
+  if (!state.currentTaller) return;
+  if (!confirm(`¿Eliminar "${state.currentTaller.nombre}"?\n\nEsto eliminará también todos sus contactos, actividades y tareas. Esta acción no se puede deshacer.`)) return;
+  deleteTaller();
+}
+
+async function deleteTaller() {
+  try {
+    await api({ action: 'deleteTaller', id: state.currentTaller.id });
+    state.talleres = state.talleres.filter(t => t.id !== state.currentTaller.id);
+    state.currentTaller = null;
+    closeModal('taller-modal');
+    render();
+    showNotif('Taller eliminado');
+  } catch(e) { showNotif('Error al eliminar', 'error'); }
+}
+
+// ══════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════
+function closeModal(id) {
+  document.getElementById(id).classList.add('hidden');
+}
+
+function showNotif(msg, type = '') {
+  const el = document.getElementById('notif');
+  el.textContent = msg;
+  el.className = 'notif show' + (type ? ' ' + type : '');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+function formatDate(str) {
+  if (!str) return '—';
+  const d = new Date(str);
+  if (isNaN(d)) return String(str);
+  return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function esc(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// Close overlay on backdrop click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.classList.add('hidden');
+  });
+});
+
+// Enter key on login
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('login-screen').style.display !== 'none') doLogin();
+});
+
+// ══════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════
+window.onload = () => {
+  try {
+    const saved = localStorage.getItem(CFG_KEY);
+    if (saved) {
+      CFG = JSON.parse(saved);
+      document.getElementById('login-name').value = CFG.nombre  || '';
+      document.getElementById('login-url').value  = CFG.apiUrl  || '';
+      if (CFG.nombre && CFG.apiUrl) { startApp(); return; }
+    }
+  } catch(e) {}
+};
+</script>
+</body>
+</html>
