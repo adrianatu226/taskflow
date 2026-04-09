@@ -66,6 +66,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--tx);min-height:100
 .ms-btn.active-fleet{border-color:var(--ac);color:var(--ac);}
 .ms-btn.active-taller{border-color:var(--yel);color:var(--yel);}
 .ms-btn.active-excl{border-color:var(--red);color:var(--red);}
+.ms-btn.active-asesor{border-color:var(--ac);color:var(--ac);}
 .ms-btn.active-servicio{border-color:var(--grn);color:var(--grn);}
 .ms-btn.active-fase{border-color:var(--ora);color:var(--ora);}
 .ms-dropdown{position:absolute;top:calc(100% + 4px);left:0;background:var(--s2);border:1px solid var(--b2);border-radius:10px;padding:.5rem;min-width:200px;max-width:280px;z-index:300;box-shadow:0 8px 32px rgba(0,0,0,.5);display:none;}
@@ -454,9 +455,14 @@ body{font-family:var(--sans);background:var(--bg);color:var(--tx);min-height:100
     <div class="top-sep"></div>
     <div class="top-stat"><span class="n" id="stat-total">—</span><span class="lbl">en op.</span></div>
     <div class="filter-bar">
-      <select class="filter-select" id="filter-asesor" onchange="applyFilters()">
-        <option value="">Todos los asesores</option>
-      </select>
+      <!-- Asesores -->
+      <div class="ms-wrap" id="asesor-wrap">
+        <button class="ms-btn" id="asesor-btn" onclick="toggleMs('asesor',event)"><span id="asesor-label">Asesores</span> ▾</button>
+        <div class="ms-dropdown" id="asesor-dd">
+          <div class="ms-dd-head"><span class="ms-dd-title">Asesores</span><button class="ms-clear" onclick="clearMs('asesor')">Limpiar</button></div>
+          <div class="ms-list" id="asesor-list"></div>
+        </div>
+      </div>
       <!-- Flotas -->
       <div class="ms-wrap" id="flota-wrap">
         <button class="ms-btn" id="flota-btn" onclick="toggleMs('flota',event)"><span id="flota-label">Flotas</span> ▾</button>
@@ -683,6 +689,7 @@ let recoItems = [];
 
 // Multi-select state
 const msState = {
+  asesor: new Set(),
   flota: new Set(),
   taller: new Set(),
   servicio: new Set(),
@@ -918,7 +925,7 @@ function buildFilterOptions() {
   const servicios = [...new Set(allVehicles.map(v=>(v['SERVICIO']||'').toUpperCase()).filter(Boolean))].sort();
 
   // Asesor selects
-  ['filter-asesor','tasks-asesor-filter','ntm-assignee','m-task-assignee'].forEach(id => {
+  ['tasks-asesor-filter','ntm-assignee','m-task-assignee'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     const cur = el.value;
@@ -933,11 +940,12 @@ function buildFilterOptions() {
   });
 
   // Multi-select lists
+  buildMsList('asesor-list', asesores, 'asesor');
   buildMsList('flota-list', flotas, 'flota');
   buildMsList('taller-list', talleres, 'taller');
   buildMsList('servicio-list', servicios, 'servicio');
   buildMsList('fase-list', Object.keys(FASE_LABELS).map(k=>({val:k,label:FASE_LABELS[k]})), 'fase', true);
-  updateMsBtn('flota'); updateMsBtn('taller'); updateMsBtn('servicio'); updateMsBtn('fase');
+  updateMsBtn('asesor'); updateMsBtn('flota'); updateMsBtn('taller'); updateMsBtn('servicio'); updateMsBtn('fase');
 }
 
 function buildMsList(listId, items, key, useObj=false) {
@@ -978,7 +986,7 @@ function updateMsBtn(key) {
   const set = msState[key];
   const isExcl = key==='taller' && tallerExclMode;
   const prefix = isExcl ? '🚫 ' : '';
-  const defaultLabels = {flota:'Flotas',taller:'Talleres',servicio:'Servicio',fase:'Todas las fases'};
+  const defaultLabels = {asesor:'Asesores',flota:'Flotas',taller:'Talleres',servicio:'Servicio',fase:'Todas las fases'};
   if (set.size === 0) { lbl.textContent = defaultLabels[key]; btn.className = 'ms-btn'; }
   else if (set.size === 1) { lbl.textContent = prefix+[...set][0].slice(0,16); btn.className = `ms-btn active-${key}`; }
   else { lbl.textContent = prefix+set.size+' '+(key==='fase'?'excluidas':'selec.'); btn.className = `ms-btn active-${isExcl?'excl':key}`; }
@@ -998,9 +1006,8 @@ document.addEventListener('click', (e) => {
 });
 
 function applyFilters() {
-  const asesorF = document.getElementById('filter-asesor').value;
   filteredVehicles = allVehicles.filter(v => {
-    if (asesorF && v['superadmin'] !== asesorF) return false;
+    if (msState.asesor.size > 0 && !msState.asesor.has(v['superadmin'])) return false;
     if (msState.flota.size > 0 && !msState.flota.has(v['fleet'])) return false;
     if (msState.taller.size > 0) {
       const inSet = msState.taller.has(v['name_shop']);
